@@ -2,6 +2,8 @@ from django.shortcuts import render, get_object_or_404
 from .models import Recipe, Allergen
 from django.core.paginator import Paginator
 from django.db.models import Q
+import json
+import ast
 
 # Create your views here.
 
@@ -30,4 +32,25 @@ def recipe_search(request):
 
 def recipe_detail(request, pk):
     recipe = get_object_or_404(Recipe, pk=pk)
-    return render(request, 'recipes/recipe_detail.html', {'recipe': recipe})
+    
+    instructions = parse_array_field(recipe.instructions)
+    ingredients = parse_array_field(recipe.scraped_ingredients_text)
+    
+    context = {
+        'recipe': recipe,
+        'instructions': instructions,
+        'ingredients': ingredients
+    }
+    return render(request, 'recipes/recipe_detail.html', context)
+
+def parse_array_field(field_value):
+    if not field_value:
+        return []
+        
+    try:
+        return json.loads(field_value)
+    except json.JSONDecodeError:
+        try:
+            return ast.literal_eval(field_value)
+        except (ValueError, SyntaxError):
+            return [field_value]

@@ -106,11 +106,7 @@ def get_all_recipe_links(max_pages):
         
         while current_page <= max_pages:
             # Wait for content to load
-            try:
-                page.wait_for_selector('.search-results', timeout=10000)
-                page.wait_for_selector('.fd-tile.fd-recipe', timeout=20000)
-            except Exception as e:
-                logger.warning(f"Error waiting for content on page {current_page}: {e}")
+            page.wait_for_timeout(3000)
             
             # Get current page content
             html = page.content()
@@ -205,10 +201,10 @@ def scrape_recipe(url):
         # Save to DB
         recipe_data = {
             'title': title,
-            'instructions': '\n'.join(directions),
+            'instructions': directions,  # Store as array directly
             'times': ready_in,
             'image_url': image_url,
-            'scraped_ingredients_text': '\n'.join(ingredients),
+            'scraped_ingredients_text': ingredients,  # Store as array directly
             'original_url': url  # Make sure URL is included in the data
         }
         
@@ -229,11 +225,14 @@ def main(max_pages=None):
     logger.info(f'Found total of {len(all_links)} unique recipe links')
     
     # Now scrape each recipe
-    for link in all_links:
+    total_links = len(all_links)
+    for index, link in enumerate(all_links, 1):
         if not link:  # Skip empty links
             continue
             
         full_url = f'https://www.food.com{link}' if link.startswith('/') else link
+        logger.info(f'Scraping recipe {index}/{total_links}: {full_url}')
+        
         existing_recipe = Recipe.objects.filter(original_url=full_url).first()
         
         if existing_recipe and existing_recipe.scraped_ingredients_text and existing_recipe.instructions:
@@ -258,7 +257,7 @@ def main(max_pages=None):
                 logger.error(f"Error saving recipe {full_url}: {str(e)}")
         else:
             logger.error(f'Failed to scrape: {full_url}')
-        time.sleep(3)  # Be polite
+        time.sleep(1)  # Be polite
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Scrape Food.com recipes.')
