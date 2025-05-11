@@ -1,0 +1,100 @@
+
+
+<!DOCTYPE html>
+<html xmlns:fb="http://www.facebook.com/2008/fbml" xmlns:og="http://ogp.me/ns#" xmlns="http://www.w3.org/1999/xhtml">
+
+
+
+
+
+<head>
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <script>
+      const oArr = (window.location.host||'').split('.');
+      const oArrLength = oArr.length;
+      // Set up the cookie Domain with the format .domain.com
+      const userConsentCD = '.' + oArr[oArrLength - 2] + '.' + oArr[oArrLength - 1];
+      let queryParams = new URLSearchParams(location.search);
+      let countryLoc = queryParams.get("countryLoc");
+      let stateLoc = queryParams.get("stateLoc");
+      if(countryLoc && stateLoc) {
+          const date = new Date();
+          date.setTime(date.getTime()+(10000));
+          const expires = '; expires=' + date.toGMTString();
+          document.cookie = "__ds_loc_country=" + countryLoc + ";domain=" + userConsentCD + expires;
+          document.cookie = "__ds_loc_state=" + stateLoc + ";domain=" + userConsentCD + expires;
+      }
+      // Set up user config with the One Trust ID and cookie domain.  The countryCode is manually set for testing
+      window.WBD = window.WBD || {};
+      window.WBD.UserConsentConfig = {
+          ccCookie: "__ds_loc_country",
+          scCookie: "__ds_loc_state",
+          cookieDomain: userConsentCD,
+          domId: "55ec37d6-291e-4be5-86b3-55bf80eca493"
+      };
+      console.log(window.WBD.UserConsentConfig);
+    </script>
+
+    <!-- OneTrust Cookies Consent Notice start -->
+    <script type="text/javascript">
+        function OptanonWrapper() { }
+    </script>
+    <!--Set up User consent Script -->
+    <script src="/lib/user-consent-disco-4.1.21.js"></script>
+    <!-- OneTrust Cookies Consent Notice end -->
+
+
+<link rel="preconnect" href="https://geniuskitchen.sndimg.com">
+<link rel="preconnect" href="https://img.sndimg.com">
+
+
+<link rel="preconnect" href="https://cdn.whisk.com">
+<link rel="preconnect" href="https://w3.cdn.anvato.net">
+<link rel="preconnect" href="https://code.adsales.snidigital.com">
+<link rel="preconnect" href="https://analytics.snidigital.com">
+<link rel="preconnect" href="https://native.sharethrough.com">
+<link rel="preconnect" href="https://ak.sail-horizon.com">
+<link rel="preconnect" href="https://ssa.food.com">
+<link rel="preconnect" href="https://ib.3lift.com">
+<link rel="preconnect" href="https://tlx.3lift.com">
+<link rel="preconnect" href="https://tagan.adlightning.com">
+<link rel="preconnect" href="https://sharethrough.adnxs.com">
+<link rel="preconnect" href="https://adserver-us.adtech.advertising.com">
+<link rel="preconnect" href="https://lightboxapi1.azurewebsites.net">
+<link rel="preconnect" href="https://as-sec.casalemedia.com">
+<link rel="preconnect" href="https://ads.celtra.com">
+<link rel="preconnect" href="https://bidder.criteo.com">
+<link rel="preconnect" href="https://gum.criteo.com">
+<link rel="preconnect" href="https://ad.doubleclick.net">
+<link rel="preconnect" href="https://bid.g.doubleclick.net">
+<link rel="preconnect" href="https://pubads.g.doubleclick.net">
+<link rel="preconnect" href="https://securepubads.g.doubleclick.net">
+<link rel="preconnect" href="https://an.facebook.com">
+<link rel="preconnect" href="https://tpc.googlesyndication.com">
+<link rel="preconnect" href="https://www.googletagservices.com">
+<link rel="preconnect" href="https://krk.kargo.com">
+<link rel="preconnect" href="https://storage.cloud.kargo.com">
+<link rel="preconnect" href="https://www.lightboxcdn.com">
+<link rel="preconnect" href="https://geo.moatads.com">
+<link rel="preconnect" href="https://px.moatads.com">
+<link rel="preconnect" href="https://s-jsonp.moatads.com">
+<link rel="preconnect" href="https://z.moatads.com">
+<link rel="preconnect" href="https://discovery-d.openx.net">
+<link rel="preconnect" href="https://fastlane.rubiconproject.com">
+<link rel="preconnect" href="https://bs.serving-sys.com">
+<link rel="preconnect" href="https://apex.go.sonobi.com">
+
+<!-- Adobe Typekit fonts -->
+<link rel="stylesheet" href="https://use.typekit.net/ryp8glv.css">

@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>Recipe Filtering App</h1>
+<form method="get" style="display:flex; flex-wrap:wrap; gap:2em; align-items:flex-end;">
+    <div>
+        <label for="search">Search for a recipe (title or ingredient):</label><br>
+        <input type="text" name="search" id="search" value="{{ request.GET.search|default:'' }}" style="width:250px; padding:0.5em; border-radius:4px; border:1px solid #ccc;">
+    </div>
+    <div>
+        <label for="allergens">Exclude Allergens:</label><br>
+        <select name="allergens" id="allergens" multiple size="7" style="width:220px; padding:0.5em; border-radius:4px; border:1px solid #ccc;">
+            {% for allergen in allergens %}
+                <option value="{{ allergen.id }}" {% if allergen.id in selected_allergens %}selected{% endif %}>{{ allergen.name }}</option>
+            {% endfor %}
+        </select>
+        <div style="font-size:0.85em; color:#666; margin-top:0.3em;">(Hold Ctrl/Cmd to select multiple)</div>
+    </div>
+    <div>
+        <button type="submit" style="padding:0.7em 2em; background:#007bff; color:#fff; border:none; border-radius:4px; font-size:1em;">GO</button>
+    </div>
+</form>
+<div style="margin-top:2em;">
+    {% if page_obj.object_list %}
+        <div style="display:flex; flex-wrap:wrap; gap:1.5em;">
+            {% for recipe in page_obj.object_list %}
+                <div style="background:#fff; color:#222; box-shadow:0 2px 8px #eee; padding:1em; border-radius:10px; width:260px; min-height:160px; display:flex; flex-direction:column; justify-content:space-between;">
+                    <a href="{% url 'recipe_detail' recipe.pk %}" style="color:#007bff; text-decoration:none; font-weight:bold; font-size:1.1em;">
+                        {{ recipe.title|truncatechars:40 }}
+                    </a>
+                    <div style="font-size:0.93em; margin:0.7em 0 0.5em 0; color:#444;">
+                        {{ recipe.scraped_ingredients_text|truncatechars:80 }}
+                    </div>
+                    <div style="margin-top:auto;">
+                        <a href="{% url 'recipe_detail' recipe.pk %}" style="font-size:0.95em; color:#fff; background:#007bff; padding:0.4em 1em; border-radius:4px; text-decoration:none;">View Details</a>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+        <div style="margin-top:2em; text-align:center;">
+            <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+            {% if page_obj.has_previous %}
+                <a href="?{% for a in selected_allergens %}allergens={{ a }}&{% endfor %}{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}page={{ page_obj.previous_page_number }}" style="margin:0 1em;">Previous</a>
+            {% endif %}
+            {% if page_obj.has_next %}
+                <a href="?{% for a in selected_allergens %}allergens={{ a }}&{% endfor %}{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}page={{ page_obj.next_page_number }}" style="margin:0 1em;">Next</a>
+            {% endif %}
+        </div>
+    {% else %}
+        <p>No recipes found.</p>
+    {% endif %}
+</div>
+{% endblock %} 
