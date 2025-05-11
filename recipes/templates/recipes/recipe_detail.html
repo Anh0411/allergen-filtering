@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="flex flex-col items-center justify-center min-h-screen py-10">
+  <div class="bg-[#F0EBE1] rounded-2xl max-w-2xl w-full p-8 flex flex-col items-center border"
+    style="border-color:rgba(38,37,34,0.24);">
+    <h1 class="text-4xl font-bold text-center mb-4 text-gray-900">{{ recipe.title }}</h1>
+    {% if recipe.image_url %}
+    <img src="{{ recipe.image_url }}" alt="{{ recipe.title }}"
+      class="w-full h-72 object-cover rounded-xl mb-6 border border-yellow-100 shadow-sm bg-gray-100" loading="lazy">
+    {% endif %}
+    <div class="w-full flex flex-col md:flex-row gap-8 mb-8">
+      <div class="flex-1">
+        <h2 class="text-xl font-semibold mb-2 text-yellow-700">Ingredients</h2>
+        <div class="bg-[#FFFBF2] rounded-lg p-4 border border-yellow-50 shadow-sm text-gray-800 whitespace-pre-line">{{ recipe.scraped_ingredients_text }}</div>
+      </div>
+      <div class="flex-1">
+        <h2 class="text-xl font-semibold mb-2 text-yellow-700">Directions</h2>
+        <div class="bg-[#FFFBF2] rounded-lg p-4 border border-yellow-50 shadow-sm text-gray-800 whitespace-pre-line">{{ recipe.instructions }}</div>
+      </div>
+    </div>
+    <a href="/"
+      class="mt-4 inline-block px-6 py-2 border border-yellow-600 text-yellow-700 rounded-full font-semibold shadow hover:bg-yellow-50 transition">&larr;
+      Back to Search</a>
+  </div>
+</div>
+{% endblock %}
