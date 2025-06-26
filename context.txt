@@ -1,0 +1,128 @@
+Here's a focused and detailed step-by-step guide specifically for Phase 3 (Technical Design and Architecture), Phase 4 (Development), and Phase 5 (Testing and Validation) to clearly guide the completion of your Web-Based Allergen Recipe Filter Tool:
+
+PHASE 3: TECHNICAL DESIGN AND ARCHITECTURE
+
+3.1 System Architecture Design
+
+Action Items:
+Clearly define and document system components:
+Frontend (UI layer, user interactions)
+Backend (business logic, data processing)
+NLP processing pipeline (ingredient analysis, allergen detection)
+Database (data storage schema)
+Clearly document data flow between components (e.g., user queries → backend API → database queries → NLP pipeline → frontend).
+
+Output:
+Detailed architecture diagrams (UML diagrams, flowcharts).
+Technical architecture documentation (Markdown/PDF).
+
+3.2 Database Schema and Implementation
+
+Action Items:
+Review and finalize the provided database schema.
+Implement the schema practically using a relational database (PostgreSQL recommended).
+Clearly set up primary keys, foreign keys, and indexing for efficient query performance.
+
+Output:
+Implemented database with defined tables (recipes, ingredients, allergens, recipe_allergens, user_feedback).
+ERD (Entity-Relationship Diagram) for documentation purposes.
+
+3.3 NLP and Web-Scraping Pipeline Design
+
+Action Items:
+Document the full pipeline clearly:
+Data extraction and scraping methods (BeautifulSoup, Selenium).
+NLP processing steps (NER, tokenization, dependency parsing).
+Allergen detection logic (explicit rule-based detection + NLP inference).
+Define clear data formats at each pipeline stage (e.g., raw HTML → structured JSON → NLP annotated data).
+
+Output:Pipeline architecture documentation.
+
+Workflow diagrams showing data transformation and flow.
+
+
+PHASE 4: DEVELOPMENT
+
+4.1 Development Environment Setup
+
+Action Items:
+Install and configure:
+Python environment (use Jupyter Notebook or PyCharm IDE).
+Web scraping libraries (BeautifulSoup, Scrapy, Selenium).
+NLP libraries (spaCy, NLTK).
+Database connection tools (SQLAlchemy).
+Frontend frameworks (ReactJS recommended).
+Git/GitHub for version control.
+Establish a virtual environment or Docker setup for consistent deployments.
+
+Output:
+Fully set up, documented development environment.
+Clear setup instructions in project README.
+
+4.2 Web-Scraping System Development
+
+Action Items:
+Develop robust scrapers for multiple culinary websites:
+Handle dynamic content loading via headless browsers (Selenium).
+Implement IP rotation and anti-blocking measures.
+Store scraped data consistently (structured format).
+
+Output:
+Working scraping modules capable of scraping from at least five websites.
+Clearly documented scraping rules and data structures.
+
+4.3 NLP Model Development
+
+Action Items:
+Develop NLP pipeline:
+Implement tokenization, named entity recognition (NER), dependency parsing.
+Create and integrate a comprehensive allergen dictionary (14 EU allergens).
+Train NLP models:
+Label a dataset manually (approx. 5,000 recipes, clearly annotated).
+Train models (using spaCy) to identify allergens with >90% accuracy.
+Integrate NLP inference with rule-based allergen checks.
+
+Output:
+NLP pipeline clearly detecting ingredients and allergens.
+Trained NLP models and integrated hybrid allergen detection module.
+
+4.4 Frontend Development
+
+Action Items:
+Develop responsive, user-friendly web interface:
+Implement allergen filtering (checkboxes/toggles).
+Implement recipe search (text-based and filters).
+Display recipe details (ingredients, allergens, source link clearly highlighted).
+Add feedback mechanism (user can submit errors/suggestions).
+
+Output:
+Complete, user-friendly web interface integrated with backend API.
+Clear frontend documentation and codebase.
+
+
+PHASE 5: TESTING AND VALIDATION
+
+5.1 Functional Testing
+
+Action Items:
+Define test cases clearly based on user stories and acceptance criteria.
+Execute functional tests systematically:
+Scraping accuracy and completeness.
+NLP allergen identification accuracy.
+Frontend interactions (search, filters, feedback submission).
+
+Output:
+Functional test report clearly documenting test cases and results.
+
+5.2 Performance and Accuracy Testing
+
+Action Items:
+Measure:
+Query response time (< 2 seconds).
+NLP allergen detection accuracy (precision, recall, F1-score against manual annotation).
+Perform automated accuracy tests weekly for continuous monitoring.
+
+Output:
+Performance report clearly indicating system efficiency.
+Weekly automated accuracy reports (clearly logged and documented).
+

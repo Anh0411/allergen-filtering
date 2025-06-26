@@ -1,0 +1,204 @@
+{% extends 'base.html' %}
+{% block title %}Allergen Dashboard - Recipe Filtering App{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-br from-yellow-50 to-orange-50">
+    <!-- Header -->
+    <div class="bg-white shadow-sm border-b border-yellow-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">Allergen Dashboard</h1>
+                    <p class="text-gray-600 mt-1">Insights and statistics about recipe allergen analysis</p>
+                </div>
+                <div class="flex space-x-4">
+                    <a href="{% url 'recipe_search' %}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-yellow-700 bg-yellow-100 hover:bg-yellow-200 transition">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
+                        Search Recipes
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Overview Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <svg class="h-8 w-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-500">Total Recipes</p>
+                        <p class="text-2xl font-semibold text-gray-900">{{ total_recipes }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <svg class="h-8 w-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-500">Analyzed</p>
+                        <p class="text-2xl font-semibold text-gray-900">{{ recipes_with_analysis }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <svg class="h-8 w-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-500">With Allergens</p>
+                        <p class="text-2xl font-semibold text-gray-900">{{ recipes_with_allergens }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <svg class="h-8 w-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-500">Analysis Rate</p>
+                        <p class="text-2xl font-semibold text-gray-900">
+                            {% if total_recipes > 0 %}
+                                {{ recipes_with_analysis|floatformat:1 }}%
+                            {% else %}
+                                0%
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Risk Level Distribution -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <div class="bg-white rounded-lg shadow p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Risk Level Distribution</h3>
+                <div class="space-y-4">
+                    {% for risk in risk_distribution %}
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center">
+                            <div class="w-4 h-4 rounded-full mr-3
+                                {% if risk.analysis_result__risk_level == 'low' %}bg-green-400
+                                {% elif risk.analysis_result__risk_level == 'medium' %}bg-yellow-400
+                                {% elif risk.analysis_result__risk_level == 'high' %}bg-orange-400
+                                {% elif risk.analysis_result__risk_level == 'critical' %}bg-red-400
+                                {% else %}bg-gray-400{% endif %}">
+                            </div>
+                            <span class="text-sm font-medium text-gray-700 capitalize">
+                                {{ risk.analysis_result__risk_level|default:"Not Analyzed" }}
+                            </span>
+                        </div>
+                        <div class="flex items-center">
+                            <div class="w-32 bg-gray-200 rounded-full h-2 mr-3">
+                                <div class="h-2 rounded-full allergen-progress-bar" 
+                                     data-percentage="{% if total_recipes > 0 %}{{ risk.count|floatformat:0 }}{% else %}0{% endif %}"
+                                     data-color="{% if risk.analysis_result__risk_level == 'low' %}green
+                                     {% elif risk.analysis_result__risk_level == 'medium' %}yellow
+                                     {% elif risk.analysis_result__risk_level == 'high' %}orange
+                                     {% elif risk.analysis_result__risk_level == 'critical' %}red
+                                     {% else %}gray{% endif %}">
+                                </div>
+                            </div>
+                            <span class="text-sm text-gray-500">{{ risk.count }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Top Allergens -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Most Common Allergens</h3>
+                <div class="space-y-4">
+                    {% for allergen in top_allergens %}
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm font-medium text-gray-700">{{ allergen.name }}</span>
+                        <div class="flex items-center">
+                            <div class="w-32 bg-gray-200 rounded-full h-2 mr-3">
+                                <div class="bg-red-400 h-2 rounded-full allergen-progress-bar" 
+                                     data-percentage="{% if total_recipes > 0 %}{{ allergen.recipe_count|floatformat:0 }}{% else %}0{% endif %}">
+                                </div>
+                            </div>
+                            <span class="text-sm text-gray-500">{{ allergen.recipe_count }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Recipes with Allergens -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Recent Recipes with Allergens</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {% for recipe in recent_allergen_recipes %}
+                <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition">
+                    <h4 class="font-medium text-gray-900 mb-2">{{ recipe.title|truncatechars:50 }}</h4>
+                    <div class="flex items-center justify-between">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                            {% if recipe.analysis_result.risk_level == 'medium' %}bg-yellow-100 text-yellow-800
+                            {% elif recipe.analysis_result.risk_level == 'high' %}bg-orange-100 text-orange-800
+                            {% elif recipe.analysis_result.risk_level == 'critical' %}bg-red-100 text-red-800
+                            {% else %}bg-gray-100 text-gray-800{% endif %}">
+                            {{ recipe.analysis_result.risk_level|title }}
+                        </span>
+                        <a href="{% url 'recipe_detail' recipe.pk %}" class="text-sm text-blue-600 hover:text-blue-800">
+                            View →
+                        </a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Animate progress bars
+    const progressBars = document.querySelectorAll('.allergen-progress-bar');
+    progressBars.forEach(bar => {
+        const percentage = bar.getAttribute('data-percentage');
+        const color = bar.getAttribute('data-color');
+        
+        // Set color based on data attribute
+        if (color) {
+            const colorMap = {
+                'green': 'bg-green-400',
+                'yellow': 'bg-yellow-400', 
+                'orange': 'bg-orange-400',
+                'red': 'bg-red-400',
+                'gray': 'bg-gray-400'
+            };
+            bar.classList.add(colorMap[color] || 'bg-gray-400');
+        }
+        
+        // Animate width
+        bar.style.width = '0%';
+        setTimeout(() => {
+            bar.style.width = percentage + '%';
+        }, 200);
+    });
+});
+</script>
+{% endblock %} 

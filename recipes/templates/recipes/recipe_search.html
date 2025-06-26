@@ -1,94 +1,966 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="flex flex-col items-center justify-center min-h-screen">
-    <h1 class="text-3xl font-bold my-8 text-center">Recipe Filtering App</h1>
-    <form method="get" class="flex flex-col gap-6 bg-[#FFF8ED] p-8 rounded-xl shadow-md mb-10 w-full max-w-6xl mx-auto">
-        <div class="flex flex-wrap gap-8 w-full">
-            <div class="flex flex-col flex-1 min-w-[18rem] max-w-lg">
-                <label for="search" class="mb-2 font-semibold text-gray-700">Search for a recipe (title or ingredient):</label>
-                <input type="text" name="search" id="search" value="{{ request.GET.search|default:'' }}" class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-yellow-300 focus:outline-none bg-[#FFFBF2] text-gray-800 placeholder-gray-400 shadow-sm" placeholder="e.g. Lemon Chicken">
-            </div>
-            <div class="flex flex-col flex-1 min-w-[18rem] max-w-lg">
-                <label for="allergens" class="mb-2 font-semibold text-gray-700">Exclude Allergens:</label>
-                <select name="allergens" id="allergens" multiple size="7" class="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-yellow-300 focus:outline-none bg-[#FFFBF2] text-gray-800 shadow-sm text-sm" style="white-space: normal;">
-                    {% for allergen in allergens %}
-                        <option value="{{ allergen.id }}" {% if allergen.id in selected_allergens %}selected{% endif %} style="white-space: normal;">{{ allergen.name }}</option>
-                    {% endfor %}
-                </select>
-                <div class="text-xs text-gray-500 mt-1">(Hold Ctrl/Cmd to select multiple)</div>
+<div class="min-h-screen bg-gradient-to-br from-yellow-50 to-orange-50">
+    <!-- Header -->
+    <div class="bg-white shadow-sm border-b border-yellow-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">Recipe Allergen Filter</h1>
+                    <p class="text-gray-600 mt-1">Find safe recipes based on your dietary needs</p>
+                </div>
+                <div class="flex space-x-4">
+                    <a href="{% url 'allergen_dashboard' %}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-yellow-700 bg-yellow-100 hover:bg-yellow-200 transition">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                        </svg>
+                        Dashboard
+                    </a>
+                </div>
             </div>
         </div>
-        <div class="flex justify-center w-full">
-            <button type="submit" class="px-8 py-3 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg font-semibold text-lg shadow transition">GO</button>
-        </div>
-    </form>
-    <div class="w-full flex flex-col items-center mb-10">
-        {% if page_obj.object_list %}
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 w-full max-w-6xl">
-                {% for recipe in page_obj.object_list %}
-                    <a href="{% url 'recipe_detail' recipe.pk %}" class="group bg-[#FFFBF2] rounded-2xl shadow-lg flex flex-col justify-between min-h-[320px] border border-yellow-300 hover:border-yellow-600 transition p-0 focus:outline-none focus:ring-2 focus:ring-yellow-400 cursor-pointer">
-                        {% if recipe.image_url %}
-                            <img src="{{ recipe.image_url }}" alt="{{ recipe.title }}" class="w-full h-48 object-cover rounded-t-2xl border-b border-yellow-300 shadow-sm bg-gray-100" loading="lazy">
-                        {% else %}
-                            <div class="w-full h-48 flex items-center justify-center bg-gray-100 rounded-t-2xl text-gray-400 border-b border-yellow-300">No Image</div>
-                        {% endif %}
-                        <div class="p-6 flex flex-col flex-1">
-                            <div class="text-xl font-bold text-gray-900 group-hover:text-yellow-600 mb-2 line-clamp-2">{{ recipe.title }}</div>
-                            <div class="mt-auto flex justify-end">
-                                <span class="inline-block px-5 py-2 border border-2 border-black rounded-full font-semibold text-base shadow transition group-hover:border-yellow-600 group-hover:text-yellow-600">View Details</span>
+    </div>
+
+    <!-- Search Form -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+            <form method="get" id="searchForm" class="space-y-6">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Search Input -->
+                    <div>
+                        <label for="search" class="block text-sm font-medium text-gray-700 mb-2">
+                            Search Recipes
+                        </label>
+                        <div class="relative">
+                            <input type="text" name="search" id="search" value="{{ search_query }}" 
+                                   class="w-full px-4 py-3 pl-10 rounded-lg border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
+                                   placeholder="Search by title, ingredients, or instructions..."
+                                   autocomplete="off"
+                                   data-search-input
+                                   aria-label="Search recipes"
+                                   aria-describedby="search-help">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                </svg>
+                            </div>
+                            <div id="search-help" class="sr-only">Search for recipes by title, ingredients, or cooking instructions</div>
+                            
+                            <!-- Search suggestions dropdown -->
+                            <div id="searchSuggestions" class="hidden absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                                <!-- Recent searches -->
+                                <div id="recentSearches" class="p-2 border-b border-gray-200">
+                                    <h4 class="text-xs font-medium text-gray-500 mb-2">Recent Searches</h4>
+                                    <div class="space-y-1" id="recentSearchesList"></div>
+                                </div>
+                                
+                                <!-- Popular searches -->
+                                <div class="p-2">
+                                    <h4 class="text-xs font-medium text-gray-500 mb-2">Popular Searches</h4>
+                                    <div class="flex flex-wrap gap-1">
+                                        <button type="button" class="suggestion-tag px-2 py-1 text-xs bg-yellow-100 text-yellow-700 rounded-full hover:bg-yellow-200 transition">gluten-free</button>
+                                        <button type="button" class="suggestion-tag px-2 py-1 text-xs bg-yellow-100 text-yellow-700 rounded-full hover:bg-yellow-200 transition">dairy-free</button>
+                                        <button type="button" class="suggestion-tag px-2 py-1 text-xs bg-yellow-100 text-yellow-700 rounded-full hover:bg-yellow-200 transition">vegan</button>
+                                        <button type="button" class="suggestion-tag px-2 py-1 text-xs bg-yellow-100 text-yellow-700 rounded-full hover:bg-yellow-200 transition">chicken</button>
+                                        <button type="button" class="suggestion-tag px-2 py-1 text-xs bg-yellow-100 text-yellow-700 rounded-full hover:bg-yellow-200 transition">pasta</button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                    </a>
-                {% endfor %}
+                    </div>
+
+                    <!-- Risk Level Filter -->
+                    <div>
+                        <label for="risk_level" class="block text-sm font-medium text-gray-700 mb-2">
+                            Risk Level
+                        </label>
+                        <select name="risk_level" id="risk_level" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500">
+                            <option value="">All Risk Levels</option>
+                            <option value="low" {% if risk_level == 'low' %}selected{% endif %}>Low Risk</option>
+                            <option value="medium" {% if risk_level == 'medium' %}selected{% endif %}>Medium Risk</option>
+                            <option value="high" {% if risk_level == 'high' %}selected{% endif %}>High Risk</option>
+                            <option value="critical" {% if risk_level == 'critical' %}selected{% endif %}>Critical Risk</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <h3 class="text-sm font-medium text-gray-700 mb-3">Quick Actions</h3>
+                    <div class="flex flex-wrap gap-2">
+                        <button type="button" class="quick-action-btn px-3 py-1 text-xs bg-green-100 text-green-700 rounded-full hover:bg-green-200 transition" data-action="safe">
+                            Show Safe Only
+                        </button>
+                        <button type="button" class="quick-action-btn px-3 py-1 text-xs bg-yellow-100 text-yellow-700 rounded-full hover:bg-yellow-200 transition" data-action="common">
+                            Common Allergens
+                        </button>
+                        <button type="button" class="quick-action-btn px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 transition" data-action="clear">
+                            Clear All Filters
+                        </button>
+                        <button type="button" class="quick-action-btn px-3 py-1 text-xs bg-purple-100 text-purple-700 rounded-full hover:bg-purple-200 transition" data-action="dairy-free">
+                            Dairy Free
+                        </button>
+                        <button type="button" class="quick-action-btn px-3 py-1 text-xs bg-orange-100 text-orange-700 rounded-full hover:bg-orange-200 transition" data-action="gluten-free">
+                            Gluten Free
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Allergen Filters -->
+                <div>
+                    <div class="flex items-center justify-between mb-3">
+                        <label class="block text-sm font-medium text-gray-700">
+                            Exclude Allergens (Select allergens to avoid)
+                        </label>
+                        <div class="flex space-x-2">
+                            <button type="button" id="selectAll" class="text-xs text-blue-600 hover:text-blue-800">Select All</button>
+                            <button type="button" id="clearAll" class="text-xs text-gray-600 hover:text-gray-800">Clear All</button>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3" id="allergenGrid">
+                        {% for category in allergen_categories %}
+                        <label class="allergen-checkbox flex items-center space-x-2 cursor-pointer p-3 rounded-lg hover:bg-gray-50 transition min-h-[44px] touch-manipulation" role="button" tabindex="0">
+                            <input type="checkbox" name="allergens" value="{{ category.name }}" 
+                                   {% if category.name in selected_allergens %}checked{% endif %}
+                                   class="rounded border-gray-300 text-yellow-600 focus:ring-yellow-500 w-4 h-4"
+                                   aria-label="Exclude {{ category.name }} allergens">
+                            <span class="text-sm text-gray-700 select-none">{{ category.name }}</span>
+                        </label>
+                    {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Sort Options -->
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                        <label for="sort" class="text-sm font-medium text-gray-700">Sort by:</label>
+                        <select name="sort" id="sort" class="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500">
+                            <option value="title" {% if sort_by == 'title' %}selected{% endif %}>Title</option>
+                            <option value="risk_level" {% if sort_by == 'risk_level' %}selected{% endif %}>Risk Level</option>
+                            <option value="confidence" {% if sort_by == 'confidence' %}selected{% endif %}>Confidence</option>
+                            <option value="date" {% if sort_by == 'date' %}selected{% endif %}>Date Added</option>
+                </select>
+                    </div>
+                    <div class="flex space-x-3">
+                        <button type="button" id="resetForm" class="px-4 py-2 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition">
+                            Reset
+                        </button>
+                        <button type="submit" id="searchBtn" class="px-6 py-2 bg-yellow-600 text-white font-medium rounded-lg hover:bg-yellow-700 focus:ring-4 focus:ring-yellow-300 transition flex items-center">
+                            <span id="searchBtnText">Search Recipes</span>
+                            <svg id="searchBtnSpinner" class="hidden ml-2 h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Statistics -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            <div class="bg-white rounded-lg shadow p-4">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <svg class="h-8 w-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-500">Total Recipes</p>
+                        <p class="text-2xl font-semibold text-gray-900">{{ total_recipes }}</p>
+                    </div>
+                </div>
             </div>
-            <div class="mt-10 flex flex-col items-center w-full">
-                <nav class="flex justify-center w-full">
-                    <ul class="flex items-center bg-[#FFF8ED] rounded-2xl px-4 py-2 gap-1 w-fit mx-auto">
-                        {% if page_obj.has_previous %}
-                            <li>
-                                <a href="?{% for a in selected_allergens %}allergens={{ a }}&{% endfor %}{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}page={{ page_obj.previous_page_number }}" class="flex items-center justify-center w-10 h-10 rounded-full hover:bg-gray-100 text-gray-500 text-xl font-bold transition">
-                                    &lt;
-                                </a>
-                            </li>
-                        {% else %}
-                            <li>
-                                <span class="flex items-center justify-center w-10 h-10 rounded-full text-gray-300 text-xl font-bold">&lt;</span>
-                            </li>
-                        {% endif %}
-                        {% for i in page_obj.paginator.page_range %}
-                            {% if page_obj.paginator.num_pages > 7 %}
-                                {% if i == 1 or i == page_obj.paginator.num_pages or i >= page_obj.number|add:'-1' and i <= page_obj.number|add:'1' %}
-                                    <li>
-                                        <a href="?{% for a in selected_allergens %}allergens={{ a }}&{% endfor %}{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}page={{ i }}" class="flex items-center justify-center w-10 h-10 rounded-lg transition font-semibold {% if page_obj.number == i %}border-yellow-600 border-2 text-gray-900{% else %}text-gray-700 hover:bg-gray-100{% endif %}">{{ i }}</a>
-                                    </li>
-                                {% elif i == 2 and page_obj.number > 4 %}
-                                    <li><span class="w-10 h-10 flex items-center justify-center text-gray-400">...</span></li>
-                                {% elif i == page_obj.paginator.num_pages|add:'-1' and page_obj.number < page_obj.paginator.num_pages|add:'-3' %}
-                                    <li><span class="w-10 h-10 flex items-center justify-center text-gray-400">...</span></li>
-                                {% endif %}
+
+            <div class="bg-white rounded-lg shadow p-4">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <svg class="h-8 w-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-500">With Allergens</p>
+                        <p class="text-2xl font-semibold text-gray-900">{{ recipes_with_allergens }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow p-4">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <svg class="h-8 w-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-500">Safe Recipes</p>
+                        <p class="text-2xl font-semibold text-gray-900">{{ total_recipes|add:"-"|add:recipes_with_allergens }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow p-4">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <svg class="h-8 w-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-500">Success Rate</p>
+                        <p class="text-2xl font-semibold text-gray-900">
+                            {% if total_recipes > 0 %}
+                                {{ recipes_with_allergens|floatformat:1 }}%
                             {% else %}
-                                <li>
-                                    <a href="?{% for a in selected_allergens %}allergens={{ a }}&{% endfor %}{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}page={{ i }}" class="flex items-center justify-center w-10 h-10 rounded-lg transition font-semibold {% if page_obj.number == i %}border-yellow-600 border-2 text-gray-900{% else %}text-gray-700 hover:bg-gray-100{% endif %}">{{ i }}</a>
-                                </li>
+                                0%
                             {% endif %}
-                        {% endfor %}
-                        {% if page_obj.has_next %}
-                            <li>
-                                <a href="?{% for a in selected_allergens %}allergens={{ a }}&{% endfor %}{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}page={{ page_obj.next_page_number }}" class="flex items-center justify-center w-10 h-10 rounded-full hover:bg-gray-100 text-gray-500 text-xl font-bold transition">
-                                    &gt;
-                                </a>
-                            </li>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recipe Grid -->
+        <div id="recipeGrid" class="relative">
+            <!-- Loading Overlay -->
+            <div id="loadingOverlay" class="hidden absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-10 rounded-lg">
+                <div class="text-center">
+                    <svg class="mx-auto h-12 w-12 text-yellow-600 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <p class="mt-2 text-sm text-gray-600">Loading recipes...</p>
+                </div>
+        </div>
+
+        {% if page_obj.object_list %}
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {% for recipe in page_obj.object_list %}
+                <div class="recipe-card bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 group">
+                    <!-- Recipe Image with Loading State -->
+                    <div class="relative">
+                        {% if recipe.image_url %}
+                        <div class="relative overflow-hidden">
+                            <img src="{{ recipe.image_url }}" alt="{{ recipe.title }}" 
+                                 class="w-full h-48 object-cover transition-transform duration-300 group-hover:scale-105"
+                                 loading="lazy"
+                                 onload="this.classList.add('loaded')"
+                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                            <!-- Fallback for failed images -->
+                            <div class="w-full h-48 bg-gradient-to-br from-yellow-50 to-orange-50 flex items-center justify-center hidden">
+                                <div class="text-center">
+                                    <svg class="w-12 h-12 text-yellow-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                    </svg>
+                                    <p class="text-gray-500 text-xs">No image</p>
+                                </div>
+                            </div>
+                        </div>
                         {% else %}
-                            <li>
-                                <span class="flex items-center justify-center w-10 h-10 rounded-full text-gray-300 text-xl font-bold">&gt;</span>
-                            </li>
+                        <div class="w-full h-48 bg-gradient-to-br from-yellow-50 to-orange-50 flex items-center justify-center">
+                            <div class="text-center">
+                                <svg class="w-12 h-12 text-yellow-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                </svg>
+                                <p class="text-gray-500 text-xs">No image available</p>
+                            </div>
+                        </div>
                         {% endif %}
-                    </ul>
+                        
+                        <!-- Quick Actions Overlay -->
+                        <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                            <div class="flex space-x-2">
+                                <button class="quick-view-btn bg-white text-gray-800 p-2 rounded-full shadow-lg hover:bg-yellow-100 transition transform scale-90 group-hover:scale-100" 
+                                        data-recipe-id="{{ recipe.pk }}" title="Quick View">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                    </svg>
+                                </button>
+                                <button class="favorite-btn bg-white text-gray-800 p-2 rounded-full shadow-lg hover:bg-red-100 transition transform scale-90 group-hover:scale-100" 
+                                        data-recipe-id="{{ recipe.pk }}" title="Add to Favorites">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Recipe Badges -->
+                        <div class="absolute top-2 left-2 flex flex-col space-y-1">
+                            <!-- Cooking time badge -->
+                            {% if recipe.times %}
+                            <div class="bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded-full flex items-center">
+                                <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                {{ recipe.times|truncatechars:12 }}
+                            </div>
+                            {% endif %}
+                            
+                            <!-- Recipe ID badge -->
+                            <div class="bg-white bg-opacity-90 text-gray-700 text-xs px-2 py-1 rounded-full">
+                                #{{ recipe.pk }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recipe Content -->
+                    <div class="p-4">
+                        <!-- Recipe Title with Better Typography -->
+                        <h3 class="text-lg font-semibold text-gray-900 mb-2 line-clamp-2 hover:text-yellow-600 transition cursor-pointer recipe-title group-hover:text-yellow-600" data-recipe-id="{{ recipe.pk }}">
+                            {{ recipe.title }}
+                        </h3>
+
+                        <!-- Enhanced Recipe Metadata -->
+                        <div class="flex items-center justify-between text-xs text-gray-500 mb-3">
+                            <div class="flex items-center space-x-3">
+                                {% if recipe.times %}
+                                <span class="flex items-center">
+                                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    {{ recipe.times|truncatechars:12 }}
+                                </span>
+                                {% endif %}
+                                <span class="flex items-center">
+                                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                                    </svg>
+                                    {{ recipe.scraped_ingredients_text|length|add:recipe.instructions|length }} items
+                                </span>
+                            </div>
+                            <span class="text-xs text-gray-400">
+                                {{ recipe.created_at|date:"M d"|default:"New" }}
+                            </span>
+                        </div>
+
+                        <!-- Risk Level Badge -->
+                        <div class="mb-3">
+                            {% if recipe.analysis_result.risk_level == 'low' %}
+                            <div class="flex items-center space-x-2">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+                                    <span class="w-2 h-2 bg-green-400 rounded-full mr-1"></span>
+                                    ✅ Safe
+                                </span>
+                                <span class="text-xs text-green-600 font-medium">Allergen-Free</span>
+                            </div>
+                            {% elif recipe.analysis_result.risk_level == 'medium' %}
+                            <div class="flex items-center space-x-2">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-200">
+                                    <span class="w-2 h-2 bg-yellow-400 rounded-full mr-1"></span>
+                                    ⚠️ Caution
+                                </span>
+                                <span class="text-xs text-yellow-600 font-medium">
+                                    {% if recipe.analysis_result.detected_allergens %}
+                                        {{ recipe.analysis_result.detected_allergens|length }} allergen(s)
+                                    {% else %}
+                                        Potential allergens
+                                    {% endif %}
+                                </span>
+                            </div>
+                            {% elif recipe.analysis_result.risk_level == 'high' %}
+                            <div class="flex items-center space-x-2">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 border border-orange-200">
+                                    <span class="w-2 h-2 bg-orange-400 rounded-full mr-1"></span>
+                                    ⚠️ High Risk
+                                </span>
+                                <span class="text-xs text-orange-600 font-medium">
+                                    {% if recipe.analysis_result.detected_allergens %}
+                                        {{ recipe.analysis_result.detected_allergens|length }} allergens
+                                    {% else %}
+                                        Multiple allergens
+                                    {% endif %}
+                                </span>
+                            </div>
+                            {% elif recipe.analysis_result.risk_level == 'critical' %}
+                            <div class="flex items-center space-x-2">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200">
+                                    <span class="w-2 h-2 bg-red-400 rounded-full mr-1"></span>
+                                    🚨 Critical
+                                </span>
+                                <span class="text-xs text-red-600 font-medium">
+                                    {% if recipe.analysis_result.detected_allergens %}
+                                        {{ recipe.analysis_result.detected_allergens|length }} major allergens
+                        {% else %}
+                                        Major allergens
+                        {% endif %}
+                                </span>
+                            </div>
+                            {% else %}
+                            <!-- Fallback for recipes without analysis -->
+                            <div class="flex items-center space-x-2">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 border border-gray-200">
+                                    <span class="w-2 h-2 bg-gray-400 rounded-full mr-1"></span>
+                                    ⚠️ Not Analyzed
+                                </span>
+                                <span class="text-xs text-gray-600 font-medium">Check ingredients</span>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Confidence Score -->
+                        {% if recipe.analysis_result.confidence_scores %}
+                        <div class="mb-3">
+                            <div class="flex items-center justify-between text-sm text-gray-600">
+                                <span>Confidence:</span>
+                                <span class="font-medium">
+                                    {% if recipe.analysis_result.confidence_scores %}
+                                        {% for allergen, score in recipe.analysis_result.confidence_scores.items %}
+                                            {% if forloop.first %}{{ score|floatformat:1 }}{% endif %}
+                {% endfor %}
+                                    {% else %}
+                                        N/A
+                                    {% endif %}
+                                </span>
+            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div class="bg-yellow-600 h-2 rounded-full confidence-bar" 
+                                     data-confidence="
+                                        {% if recipe.analysis_result.confidence_scores %}
+                                            {% for allergen, score in recipe.analysis_result.confidence_scores.items %}
+                                                {% if forloop.first %}{{ score|floatformat:0 }}{% endif %}
+                                            {% endfor %}
+                        {% else %}
+                                            0
+                                        {% endif %}
+                                     "></div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Allergen Tags -->
+                        {% if recipe.analysis_result.detected_allergens %}
+                        <div class="mb-4">
+                            <p class="text-xs text-gray-500 mb-1">Contains:</p>
+                            <div class="flex flex-wrap gap-1">
+                                {% for allergen_name, terms in recipe.analysis_result.detected_allergens.items %}
+                                    {% if forloop.counter <= 3 %}
+                                    <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-800">
+                                        {{ allergen_name|title }}
+                                    </span>
+                                    {% endif %}
+                                {% endfor %}
+                                {% if recipe.analysis_result.detected_allergens|length > 3 %}
+                                <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-600">
+                                    +{{ recipe.analysis_result.detected_allergens|length|add:"-3" }} more
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Safety Indicator -->
+                        <div class="mb-4">
+                            {% if recipe.analysis_result.risk_level == 'low' %}
+                            <div class="flex items-center text-xs text-green-700 bg-green-50 rounded-lg p-2 border border-green-200">
+                                <svg class="w-4 h-4 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                <span class="font-medium">Safe to consume</span>
+                            </div>
+                            {% elif recipe.analysis_result.risk_level == 'medium' %}
+                            <div class="flex items-center text-xs text-yellow-700 bg-yellow-50 rounded-lg p-2 border border-yellow-200">
+                                <svg class="w-4 h-4 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                                </svg>
+                                <span class="font-medium">Check ingredients carefully</span>
+                            </div>
+                            {% elif recipe.analysis_result.risk_level == 'high' %}
+                            <div class="flex items-center text-xs text-orange-700 bg-orange-50 rounded-lg p-2 border border-orange-200">
+                                <svg class="w-4 h-4 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                                </svg>
+                                <span class="font-medium">Multiple allergens detected</span>
+                            </div>
+                            {% elif recipe.analysis_result.risk_level == 'critical' %}
+                            <div class="flex items-center text-xs text-red-700 bg-red-50 rounded-lg p-2 border border-red-200">
+                                <svg class="w-4 h-4 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                                </svg>
+                                <span class="font-medium">Avoid if you have allergies</span>
+                            </div>
+                            {% else %}
+                            <!-- Fallback for recipes without analysis -->
+                            <div class="flex items-center text-xs text-gray-700 bg-gray-50 rounded-lg p-2 border border-gray-200">
+                                <svg class="w-4 h-4 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                                </svg>
+                                <span class="font-medium">Analysis pending</span>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- View Details Button -->
+                        <a href="{% url 'recipe_detail' recipe.pk %}" 
+                           class="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 transition">
+                            View Details
+                            <svg class="ml-2 -mr-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+                        {% endfor %}
+            </div>
+
+            <!-- Pagination -->
+            {% if page_obj.has_other_pages %}
+            <div class="mt-8 flex justify-center">
+                <nav class="flex items-center space-x-2">
+                    {% if page_obj.has_previous %}
+                    <a href="?{% for allergen in selected_allergens %}allergens={{ allergen }}&{% endfor %}{% if search_query %}search={{ search_query }}&{% endif %}{% if risk_level %}risk_level={{ risk_level }}&{% endif %}{% if sort_by %}sort={{ sort_by }}&{% endif %}page={{ page_obj.previous_page_number }}" 
+                       class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                        Previous
+                    </a>
+                    {% endif %}
+
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                        <span class="px-3 py-2 text-sm font-medium text-white bg-yellow-600 border border-yellow-600 rounded-md">{{ num }}</span>
+                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <a href="?{% for allergen in selected_allergens %}allergens={{ allergen }}&{% endfor %}{% if search_query %}search={{ search_query }}&{% endif %}{% if risk_level %}risk_level={{ risk_level }}&{% endif %}{% if sort_by %}sort={{ sort_by }}&{% endif %}page={{ num }}" 
+                           class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50">{{ num }}</a>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if page_obj.has_next %}
+                    <a href="?{% for allergen in selected_allergens %}allergens={{ allergen }}&{% endfor %}{% if search_query %}search={{ search_query }}&{% endif %}{% if risk_level %}risk_level={{ risk_level }}&{% endif %}{% if sort_by %}sort={{ sort_by }}&{% endif %}page={{ page_obj.next_page_number }}" 
+                       class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                        Next
+                    </a>
+                    {% endif %}
                 </nav>
             </div>
+            {% endif %}
+
         {% else %}
-            <p class="text-lg text-gray-600 mt-10">No recipes found.</p>
+            <div class="text-center py-12">
+                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                <h3 class="mt-2 text-sm font-medium text-gray-900">No recipes found</h3>
+                <p class="mt-1 text-sm text-gray-500">Try adjusting your search criteria or allergen filters.</p>
+            </div>
         {% endif %}
+        </div>
     </div>
 </div>
+
+<style>
+.confidence-bar {
+    width: 0%;
+    transition: width 0.8s ease-in-out;
+}
+.allergen-checkbox:hover {
+    background-color: rgba(59, 130, 246, 0.05);
+}
+.quick-action-btn.active {
+    background-color: #f59e0b;
+    color: white;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize variables
+    const searchForm = document.getElementById('searchForm');
+    const searchBtn = document.getElementById('searchBtn');
+    const searchBtnText = document.getElementById('searchBtnText');
+    const searchBtnSpinner = document.getElementById('searchBtnSpinner');
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const recipeGrid = document.getElementById('recipeGrid');
+    const allergenCheckboxes = document.querySelectorAll('input[name="allergens"]');
+    const selectAllBtn = document.getElementById('selectAll');
+    const clearAllBtn = document.getElementById('clearAll');
+    const resetFormBtn = document.getElementById('resetForm');
+    const quickActionBtns = document.querySelectorAll('.quick-action-btn');
+    const recipeTitles = document.querySelectorAll('.recipe-title');
+    const quickViewBtns = document.querySelectorAll('.quick-view-btn');
+    const favoriteBtns = document.querySelectorAll('.favorite-btn');
+
+    // Loading state management
+    function showLoading() {
+        searchBtn.disabled = true;
+        searchBtnText.textContent = 'Searching...';
+        searchBtnSpinner.classList.remove('hidden');
+        loadingOverlay.classList.remove('hidden');
+    }
+
+    function hideLoading() {
+        searchBtn.disabled = false;
+        searchBtnText.textContent = 'Search Recipes';
+        searchBtnSpinner.classList.add('hidden');
+        loadingOverlay.classList.add('hidden');
+    }
+
+    // Enhanced error handling
+    function handleError(error, context = '') {
+        console.error(`Error in ${context}:`, error);
+        showToast(`An error occurred: ${error.message || 'Please try again'}`, 'error');
+    }
+
+    // Enhanced form submission with error handling
+    searchForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        try {
+            const searchValue = document.getElementById('search').value.trim();
+            if (searchValue) {
+                addRecentSearch(searchValue);
+            }
+            showLoading();
+            this.submit();
+        } catch (error) {
+            handleError(error, 'form submission');
+            hideLoading();
+        }
+    });
+
+    // Quick Actions
+    quickActionBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const action = this.dataset.action;
+            
+            // Remove active class from all buttons
+            quickActionBtns.forEach(b => b.classList.remove('active'));
+            // Add active class to clicked button
+            this.classList.add('active');
+
+            switch(action) {
+                case 'safe':
+                    // Show only safe recipes
+                    document.getElementById('risk_level').value = 'low';
+                    clearAllAllergens();
+                    break;
+                case 'common':
+                    // Select common allergens
+                    selectCommonAllergens();
+                    break;
+                case 'clear':
+                    // Clear all filters
+                    clearAllFilters();
+                    break;
+                case 'dairy-free':
+                    // Dairy free filter
+                    clearAllAllergens();
+                    selectAllergen('Milk');
+                    break;
+                case 'gluten-free':
+                    // Gluten free filter
+                    clearAllAllergens();
+                    selectAllergen('Wheat');
+                    break;
+            }
+            
+            // Submit form
+            showLoading();
+            searchForm.submit();
+        });
+    });
+
+    // Allergen filter management
+    function selectAllAllergens() {
+        allergenCheckboxes.forEach(checkbox => {
+            checkbox.checked = true;
+        });
+    }
+
+    function clearAllAllergens() {
+        allergenCheckboxes.forEach(checkbox => {
+            checkbox.checked = false;
+        });
+    }
+
+    function clearAllFilters() {
+        searchForm.reset();
+        clearAllAllergens();
+        quickActionBtns.forEach(btn => btn.classList.remove('active'));
+    }
+
+    function selectAllergen(allergenName) {
+        const checkbox = document.querySelector(`input[name="allergens"][value="${allergenName}"]`);
+        if (checkbox) {
+            checkbox.checked = true;
+        }
+    }
+
+    function selectCommonAllergens() {
+        const commonAllergens = ['Milk', 'Eggs', 'Peanuts', 'Tree Nuts', 'Soy', 'Wheat'];
+        clearAllAllergens();
+        commonAllergens.forEach(allergen => {
+            selectAllergen(allergen);
+        });
+    }
+
+    // Select All / Clear All buttons
+    selectAllBtn.addEventListener('click', function() {
+        selectAllAllergens();
+        updateAllergenCount();
+    });
+
+    clearAllBtn.addEventListener('click', function() {
+        clearAllAllergens();
+        updateAllergenCount();
+    });
+
+    // Reset form
+    resetFormBtn.addEventListener('click', function() {
+        searchForm.reset();
+        clearAllAllergens();
+        quickActionBtns.forEach(btn => btn.classList.remove('active'));
+        updateAllergenCount();
+    });
+
+    // Update allergen count display
+    function updateAllergenCount() {
+        const checkedCount = document.querySelectorAll('input[name="allergens"]:checked').length;
+        const totalCount = allergenCheckboxes.length;
+        
+        // Update the label to show count
+        const label = document.querySelector('.block.text-sm.font-medium.text-gray-700');
+        if (label) {
+            label.textContent = `Exclude Allergens (${checkedCount}/${totalCount} selected)`;
+        }
+    }
+
+    // Initialize allergen count
+    updateAllergenCount();
+
+    // Update count when checkboxes change
+    allergenCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateAllergenCount);
+    });
+
+    // Recipe card interactions
+    recipeTitles.forEach(title => {
+        title.addEventListener('click', function() {
+            const recipeId = this.dataset.recipeId;
+            window.location.href = `/recipe/${recipeId}/`;
+        });
+    });
+
+    // Quick view functionality
+    quickViewBtns.forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const recipeId = this.dataset.recipeId;
+            
+            // Show loading state
+            this.innerHTML = '<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>';
+            
+            // Open in new tab
+            setTimeout(() => {
+                window.open(`/recipe/${recipeId}/`, '_blank');
+                this.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>';
+            }, 300);
+        });
+    });
+
+    // Favorite functionality
+    favoriteBtns.forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const recipeId = this.dataset.recipeId;
+            
+            // Toggle favorite state
+            this.classList.toggle('favorited');
+            
+            if (this.classList.contains('favorited')) {
+                this.innerHTML = '<svg class="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 24 24"><path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>';
+                showToast('Recipe added to favorites!', 'success');
+            } else {
+                this.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>';
+                showToast('Recipe removed from favorites!', 'info');
+            }
+        });
+    });
+
+    // Enhanced toast notification system
+    function showToast(message, type = 'info') {
+        try {
+            // Remove existing toasts
+            const existingToasts = document.querySelectorAll('.toast');
+            existingToasts.forEach(toast => toast.remove());
+
+            // Create toast element with better styling
+            const toast = document.createElement('div');
+            toast.className = `toast fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-white transform translate-x-full transition-all duration-300 max-w-sm`;
+            
+            // Set color and icon based on type
+            const toastConfig = {
+                success: { bg: 'bg-green-500', icon: '✓' },
+                error: { bg: 'bg-red-500', icon: '✕' },
+                warning: { bg: 'bg-yellow-500', icon: '⚠' },
+                info: { bg: 'bg-blue-500', icon: 'ℹ' }
+            };
+            
+            const config = toastConfig[type] || toastConfig.info;
+            toast.classList.add(config.bg);
+            
+            toast.innerHTML = `
+                <div class="flex items-center">
+                    <span class="mr-2">${config.icon}</span>
+                    <span class="text-sm font-medium">${message}</span>
+                </div>
+            `;
+            
+            document.body.appendChild(toast);
+
+            // Animate in
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-x-full');
+            });
+
+            // Animate out and remove
+            setTimeout(() => {
+                toast.classList.add('translate-x-full');
+                setTimeout(() => {
+                    if (toast.parentNode) {
+                        toast.remove();
+                    }
+                }, 300);
+            }, 4000);
+        } catch (error) {
+            console.error('Toast error:', error);
+        }
+    }
+
+    // Auto-submit on filter changes (with debounce)
+    let submitTimeout;
+    function debouncedSubmit() {
+        try {
+            clearTimeout(submitTimeout);
+            submitTimeout = setTimeout(() => {
+                showLoading();
+                searchForm.submit();
+            }, 500);
+        } catch (error) {
+            handleError(error, 'debounced submit');
+        }
+    }
+
+    // Auto-submit on risk level change
+    document.getElementById('risk_level').addEventListener('change', debouncedSubmit);
+    document.getElementById('sort').addEventListener('change', debouncedSubmit);
+
+    // Auto-submit on allergen checkbox changes
+    allergenCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', debouncedSubmit);
+    });
+
+    // Search input with debounce
+    const searchInput = document.getElementById('search');
+    const searchSuggestions = document.getElementById('searchSuggestions');
+    const recentSearchesList = document.getElementById('recentSearchesList');
+    
+    // Search suggestions functionality
+    function showSearchSuggestions() {
+        if (searchInput.value.trim() === '') {
+            searchSuggestions.classList.remove('hidden');
+            loadRecentSearches();
+        } else {
+            searchSuggestions.classList.add('hidden');
+        }
+    }
+    
+    function hideSearchSuggestions() {
+        setTimeout(() => {
+            searchSuggestions.classList.add('hidden');
+        }, 200);
+    }
+    
+    function loadRecentSearches() {
+        const recentSearches = JSON.parse(localStorage.getItem('recentSearches') || '[]');
+        recentSearchesList.innerHTML = '';
+        
+        recentSearches.slice(0, 5).forEach(search => {
+            const item = document.createElement('div');
+            item.className = 'flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer';
+            item.innerHTML = `
+                <span class="text-sm text-gray-700">${search}</span>
+                <button class="text-xs text-gray-400 hover:text-red-500" onclick="removeRecentSearch('${search}')">×</button>
+            `;
+            item.addEventListener('click', () => {
+                searchInput.value = search;
+                searchSuggestions.classList.add('hidden');
+                debouncedSubmit();
+            });
+            recentSearchesList.appendChild(item);
+        });
+    }
+    
+    function addRecentSearch(search) {
+        if (!search.trim()) return;
+        
+        const recentSearches = JSON.parse(localStorage.getItem('recentSearches') || '[]');
+        const filtered = recentSearches.filter(s => s !== search);
+        filtered.unshift(search);
+        
+        localStorage.setItem('recentSearches', JSON.stringify(filtered.slice(0, 10)));
+    }
+    
+    function removeRecentSearch(search) {
+        const recentSearches = JSON.parse(localStorage.getItem('recentSearches') || '[]');
+        const filtered = recentSearches.filter(s => s !== search);
+        localStorage.setItem('recentSearches', JSON.stringify(filtered));
+        loadRecentSearches();
+    }
+    
+    // Search input event listeners
+    searchInput.addEventListener('focus', showSearchSuggestions);
+    searchInput.addEventListener('blur', hideSearchSuggestions);
+    searchInput.addEventListener('input', function() {
+        debouncedSubmit();
+        if (this.value.trim() === '') {
+            showSearchSuggestions();
+        } else {
+            searchSuggestions.classList.add('hidden');
+        }
+    });
+    
+    // Suggestion tag clicks
+    document.querySelectorAll('.suggestion-tag').forEach(tag => {
+        tag.addEventListener('click', function() {
+            searchInput.value = this.textContent;
+            searchSuggestions.classList.add('hidden');
+            addRecentSearch(this.textContent);
+            debouncedSubmit();
+        });
+    });
+    
+    // Animate confidence bars
+    const confidenceBars = document.querySelectorAll('.confidence-bar');
+    confidenceBars.forEach(bar => {
+        const confidence = bar.getAttribute('data-confidence');
+        setTimeout(() => {
+            bar.style.width = confidence + '%';
+        }, 200);
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        // Ctrl/Cmd + F to focus search
+        if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+            e.preventDefault();
+            searchInput.focus();
+        }
+        
+        // Escape to clear search
+        if (e.key === 'Escape') {
+            searchInput.value = '';
+            searchInput.focus();
+        }
+    });
+
+    // Show welcome message on first visit
+    if (!localStorage.getItem('hasVisited')) {
+        setTimeout(() => {
+            showToast('Welcome! Use the quick actions to filter recipes by common dietary needs.', 'info');
+            localStorage.setItem('hasVisited', 'true');
+        }, 1000);
+    }
+});
+</script>
 {% endblock %} 
