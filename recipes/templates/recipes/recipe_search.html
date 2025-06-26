@@ -158,7 +158,7 @@
         </div>
 
         <!-- Statistics -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
             <div class="bg-white rounded-lg shadow p-4">
                 <div class="flex items-center">
                     <div class="flex-shrink-0">
@@ -183,40 +183,6 @@
                     <div class="ml-4">
                         <p class="text-sm font-medium text-gray-500">With Allergens</p>
                         <p class="text-2xl font-semibold text-gray-900">{{ recipes_with_allergens }}</p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="bg-white rounded-lg shadow p-4">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <svg class="h-8 w-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                    </div>
-                    <div class="ml-4">
-                        <p class="text-sm font-medium text-gray-500">Safe Recipes</p>
-                        <p class="text-2xl font-semibold text-gray-900">{{ total_recipes|add:"-"|add:recipes_with_allergens }}</p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="bg-white rounded-lg shadow p-4">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <svg class="h-8 w-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                        </svg>
-                    </div>
-                    <div class="ml-4">
-                        <p class="text-sm font-medium text-gray-500">Success Rate</p>
-                        <p class="text-2xl font-semibold text-gray-900">
-                            {% if total_recipes > 0 %}
-                                {{ recipes_with_allergens|floatformat:1 }}%
-                            {% else %}
-                                0%
-                            {% endif %}
-                        </p>
                     </div>
                 </div>
             </div>
@@ -410,20 +376,20 @@
                                     {% if recipe.analysis_result.confidence_scores %}
                                         {% for allergen, score in recipe.analysis_result.confidence_scores.items %}
                                             {% if forloop.first %}{{ score|floatformat:1 }}{% endif %}
-                {% endfor %}
+                                        {% endfor %}
                                     {% else %}
                                         N/A
                                     {% endif %}
                                 </span>
-            </div>
+                            </div>
                             <div class="w-full bg-gray-200 rounded-full h-2">
                                 <div class="bg-yellow-600 h-2 rounded-full confidence-bar" 
                                      data-confidence="
                                         {% if recipe.analysis_result.confidence_scores %}
                                             {% for allergen, score in recipe.analysis_result.confidence_scores.items %}
-                                                {% if forloop.first %}{{ score|floatformat:0 }}{% endif %}
+                                                {% if forloop.first %}{% widthratio score 1 100 %}{% endif %}
                                             {% endfor %}
-                        {% else %}
+                                        {% else %}
                                             0
                                         {% endif %}
                                      "></div>
@@ -933,9 +899,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Animate confidence bars
     const confidenceBars = document.querySelectorAll('.confidence-bar');
     confidenceBars.forEach(bar => {
-        const confidence = bar.getAttribute('data-confidence');
+        const confidence = parseFloat(bar.getAttribute('data-confidence')) || 0;
         setTimeout(() => {
-            bar.style.width = confidence + '%';
+            bar.style.width = Math.min(confidence, 100) + '%';
         }, 200);
     });
 
