@@ -1,0 +1,46 @@
+{% comment %}
+Safety Indicator Component
+Usage: {% include 'components/shared/safety_indicator.html' with risk_level=recipe.analysis_result.risk_level %}
+Parameters:
+- risk_level: 'low', 'medium', 'high', 'critical', or any other value
+{% endcomment %}
+
+{% load static %}
+
+{% if risk_level == 'low' %}
+<div class="flex items-center text-xs text-green-700 bg-green-50 rounded-lg p-2 border border-green-200">
+    <svg class="w-4 h-4 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+    </svg>
+    <span class="font-medium">Safe to consume</span>
+</div>
+{% elif risk_level == 'medium' %}
+<div class="flex items-center text-xs text-yellow-700 bg-yellow-50 rounded-lg p-2 border border-yellow-200">
+    <svg class="w-4 h-4 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+    </svg>
+    <span class="font-medium">Check ingredients carefully</span>
+</div>
+{% elif risk_level == 'high' %}
+<div class="flex items-center text-xs text-orange-700 bg-orange-50 rounded-lg p-2 border border-orange-200">
+    <svg class="w-4 h-4 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+    </svg>
+    <span class="font-medium">Multiple allergens detected</span>
+</div>
+{% elif risk_level == 'critical' %}
+<div class="flex items-center text-xs text-red-700 bg-red-50 rounded-lg p-2 border border-red-200">
+    <svg class="w-4 h-4 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+    </svg>
+    <span class="font-medium">Avoid if you have allergies</span>
+</div>
+{% else %}
+<!-- Fallback for recipes without analysis -->
+<div class="flex items-center text-xs text-gray-700 bg-gray-50 rounded-lg p-2 border border-gray-200">
+    <svg class="w-4 h-4 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+    </svg>
+    <span class="font-medium">Analysis pending</span>
+</div>
+{% endif %} 

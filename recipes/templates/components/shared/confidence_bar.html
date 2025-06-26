@@ -1,0 +1,44 @@
+{% comment %}
+Confidence Bar Component
+Usage: {% include 'components/shared/confidence_bar.html' with confidence_scores=recipe.analysis_result.confidence_scores %}
+Parameters:
+- confidence_scores: dictionary of confidence scores
+- height: 'sm' (h-1), 'md' (h-2), 'lg' (h-3) - default: 'md'
+- color: 'yellow', 'red', 'blue', 'green' - default: 'yellow'
+{% endcomment %}
+
+{% load static %}
+
+{% if confidence_scores %}
+<div class="mb-3">
+    <div class="flex items-center justify-between text-sm text-gray-600">
+        <span>Confidence:</span>
+        <span class="font-medium">
+            {% for allergen, score in confidence_scores.items %}
+                {% if forloop.first %}{{ score|floatformat:1 }}{% endif %}
+            {% endfor %}
+        </span>
+    </div>
+    <div class="w-full bg-gray-200 rounded-full h-2">
+        <div class="bg-yellow-600 h-2 rounded-full confidence-bar" 
+             data-confidence="
+                {% for allergen, score in confidence_scores.items %}
+                    {% if forloop.first %}{% widthratio score 1 100 %}{% endif %}
+                {% endfor %}
+             "></div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Animate confidence bars
+    const confidenceBars = document.querySelectorAll('.confidence-bar');
+    confidenceBars.forEach(bar => {
+        const confidence = parseFloat(bar.getAttribute('data-confidence')) || 0;
+        setTimeout(() => {
+            bar.style.width = Math.min(confidence, 100) + '%';
+        }, 200);
+    });
+});
+</script>
+{% endif %} 

@@ -8,7 +8,7 @@ import os
 # Add the scraper directory to the path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'scraper'))
 
-from scrape_foodcom_with_allergen_detection import FoodComAllergenScraper
+from scraper.scrape_foodcom_with_allergen_detection import FoodComAllergenScraper
 
 logger = logging.getLogger(__name__)
 

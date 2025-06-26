@@ -1,0 +1,439 @@
+{% load static %}
+
+<div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+    <form method="get" id="searchForm" class="space-y-6">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Search Input -->
+            <div>
+                <label for="search" class="block text-sm font-medium text-gray-700 mb-2">
+                    Search Recipes
+                </label>
+                <div class="relative">
+                    <input type="text" name="search" id="search" value="{{ search_query }}" 
+                           class="w-full px-4 py-3 pl-10 rounded-lg border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
+                           placeholder="Search by title, ingredients, or instructions..."
+                           autocomplete="off"
+                           data-search-input
+                           aria-label="Search recipes"
+                           aria-describedby="search-help">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
+                    </div>
+                    <div id="search-help" class="sr-only">Search for recipes by title, ingredients, or cooking instructions</div>
+                    
+                    <!-- Search suggestions dropdown -->
+                    <div id="searchSuggestions" class="hidden absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                        <!-- Recent searches -->
+                        <div id="recentSearches" class="p-2 border-b border-gray-200">
+                            <h4 class="text-xs font-medium text-gray-500 mb-2">Recent Searches</h4>
+                            <div class="space-y-1" id="recentSearchesList"></div>
+                        </div>
+                        
+                        <!-- Popular searches -->
+                        <div class="p-2">
+                            <h4 class="text-xs font-medium text-gray-500 mb-2">Popular Searches</h4>
+                            <div class="flex flex-wrap gap-1">
+                                <button type="button" class="suggestion-tag px-2 py-1 text-xs bg-yellow-100 text-yellow-700 rounded-full hover:bg-yellow-200 transition">gluten-free</button>
+                                <button type="button" class="suggestion-tag px-2 py-1 text-xs bg-yellow-100 text-yellow-700 rounded-full hover:bg-yellow-200 transition">dairy-free</button>
+                                <button type="button" class="suggestion-tag px-2 py-1 text-xs bg-yellow-100 text-yellow-700 rounded-full hover:bg-yellow-200 transition">vegan</button>
+                                <button type="button" class="suggestion-tag px-2 py-1 text-xs bg-yellow-100 text-yellow-700 rounded-full hover:bg-yellow-200 transition">chicken</button>
+                                <button type="button" class="suggestion-tag px-2 py-1 text-xs bg-yellow-100 text-yellow-700 rounded-full hover:bg-yellow-200 transition">pasta</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Risk Level Filter -->
+            <div>
+                <label for="risk_level" class="block text-sm font-medium text-gray-700 mb-2">
+                    Risk Level
+                </label>
+                <select name="risk_level" id="risk_level" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500">
+                    <option value="">All Risk Levels</option>
+                    <option value="low" {% if risk_level == 'low' %}selected{% endif %}>Low Risk</option>
+                    <option value="medium" {% if risk_level == 'medium' %}selected{% endif %}>Medium Risk</option>
+                    <option value="high" {% if risk_level == 'high' %}selected{% endif %}>High Risk</option>
+                    <option value="critical" {% if risk_level == 'critical' %}selected{% endif %}>Critical Risk</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="bg-gray-50 rounded-lg p-4">
+            <h3 class="text-sm font-medium text-gray-700 mb-3">Quick Actions</h3>
+            <div class="flex flex-wrap gap-2">
+                <button type="button" class="quick-action-btn px-3 py-1 text-xs bg-green-100 text-green-700 rounded-full hover:bg-green-200 transition" data-action="safe">
+                    Show Safe Only
+                </button>
+                <button type="button" class="quick-action-btn px-3 py-1 text-xs bg-yellow-100 text-yellow-700 rounded-full hover:bg-yellow-200 transition" data-action="common">
+                    Common Allergens
+                </button>
+                <button type="button" class="quick-action-btn px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 transition" data-action="clear">
+                    Clear All Filters
+                </button>
+                <button type="button" class="quick-action-btn px-3 py-1 text-xs bg-purple-100 text-purple-700 rounded-full hover:bg-purple-200 transition" data-action="dairy-free">
+                    Dairy Free
+                </button>
+                <button type="button" class="quick-action-btn px-3 py-1 text-xs bg-orange-100 text-orange-700 rounded-full hover:bg-orange-200 transition" data-action="gluten-free">
+                    Gluten Free
+                </button>
+            </div>
+        </div>
+
+        <!-- Allergen Filters -->
+        <div>
+            <div class="flex items-center justify-between mb-3">
+                <label class="block text-sm font-medium text-gray-700">
+                    Exclude Allergens (Select allergens to avoid)
+                </label>
+                <div class="flex space-x-2">
+                    <button type="button" id="selectAll" class="text-xs text-blue-600 hover:text-blue-800">Select All</button>
+                    <button type="button" id="clearAll" class="text-xs text-gray-600 hover:text-gray-800">Clear All</button>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3" id="allergenGrid">
+                {% for category in allergen_categories %}
+                <label class="allergen-checkbox flex items-center space-x-2 cursor-pointer p-3 rounded-lg hover:bg-gray-50 transition min-h-[44px] touch-manipulation" role="button" tabindex="0">
+                    <input type="checkbox" name="allergens" value="{{ category.name }}" 
+                           {% if category.name in selected_allergens %}checked{% endif %}
+                           class="rounded border-gray-300 text-yellow-600 focus:ring-yellow-500 w-4 h-4"
+                           aria-label="Exclude {{ category.name }} allergens">
+                    <span class="text-sm text-gray-700 select-none">{{ category.name }}</span>
+                </label>
+            {% endfor %}
+            </div>
+        </div>
+
+        <!-- Sort Options -->
+        <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+                <label for="sort" class="text-sm font-medium text-gray-700">Sort by:</label>
+                <select name="sort" id="sort" class="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500">
+                    <option value="title" {% if sort_by == 'title' %}selected{% endif %}>Title</option>
+                    <option value="risk_level" {% if sort_by == 'risk_level' %}selected{% endif %}>Risk Level</option>
+                    <option value="confidence" {% if sort_by == 'confidence' %}selected{% endif %}>Confidence</option>
+                    <option value="date" {% if sort_by == 'date' %}selected{% endif %}>Date Added</option>
+        </select>
+            </div>
+            <div class="flex space-x-3">
+                <button type="button" id="resetForm" class="px-4 py-2 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition">
+                    Reset
+                </button>
+                <button type="submit" id="searchBtn" class="px-6 py-2 bg-yellow-600 text-white font-medium rounded-lg hover:bg-yellow-700 focus:ring-4 focus:ring-yellow-300 transition flex items-center">
+                    <span id="searchBtnText">Search Recipes</span>
+                    <div id="searchBtnSpinner" class="hidden ml-2">
+                        {% include 'components/shared/spinner.html' with size='sm' %}
+                    </div>
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<style>
+.allergen-checkbox:hover {
+    background-color: rgba(59, 130, 246, 0.05);
+}
+.quick-action-btn.active {
+    background-color: #f59e0b;
+    color: white;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize variables
+    const searchForm = document.getElementById('searchForm');
+    const searchBtn = document.getElementById('searchBtn');
+    const searchBtnText = document.getElementById('searchBtnText');
+    const searchBtnSpinner = document.getElementById('searchBtnSpinner');
+    const allergenCheckboxes = document.querySelectorAll('input[name="allergens"]');
+    const selectAllBtn = document.getElementById('selectAll');
+    const clearAllBtn = document.getElementById('clearAll');
+    const resetFormBtn = document.getElementById('resetForm');
+    const quickActionBtns = document.querySelectorAll('.quick-action-btn');
+
+    // Loading state management
+    function showLoading() {
+        searchBtn.disabled = true;
+        searchBtnText.textContent = 'Searching...';
+        searchBtnSpinner.classList.remove('hidden');
+    }
+
+    function hideLoading() {
+        searchBtn.disabled = false;
+        searchBtnText.textContent = 'Search Recipes';
+        searchBtnSpinner.classList.add('hidden');
+    }
+
+    // Enhanced error handling
+    function handleError(error, context = '') {
+        console.error(`Error in ${context}:`, error);
+        if (window.showToast) {
+            window.showToast(`An error occurred: ${error.message || 'Please try again'}`, 'error');
+        }
+    }
+
+    // Enhanced form submission with error handling
+    searchForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        try {
+            const searchValue = document.getElementById('search').value.trim();
+            if (searchValue) {
+                addRecentSearch(searchValue);
+            }
+            showLoading();
+            this.submit();
+        } catch (error) {
+            handleError(error, 'form submission');
+            hideLoading();
+        }
+    });
+
+    // Quick Actions
+    quickActionBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const action = this.dataset.action;
+            
+            // Remove active class from all buttons
+            quickActionBtns.forEach(b => b.classList.remove('active'));
+            // Add active class to clicked button
+            this.classList.add('active');
+
+            switch(action) {
+                case 'safe':
+                    // Show only safe recipes
+                    document.getElementById('risk_level').value = 'low';
+                    clearAllAllergens();
+                    break;
+                case 'common':
+                    // Select common allergens
+                    selectCommonAllergens();
+                    break;
+                case 'clear':
+                    // Clear all filters
+                    clearAllFilters();
+                    break;
+                case 'dairy-free':
+                    // Dairy free filter
+                    clearAllAllergens();
+                    selectAllergen('Milk');
+                    break;
+                case 'gluten-free':
+                    // Gluten free filter
+                    clearAllAllergens();
+                    selectAllergen('Wheat');
+                    break;
+            }
+            
+            // Submit form
+            showLoading();
+            searchForm.submit();
+        });
+    });
+
+    // Allergen filter management
+    function selectAllAllergens() {
+        allergenCheckboxes.forEach(checkbox => {
+            checkbox.checked = true;
+        });
+    }
+
+    function clearAllAllergens() {
+        allergenCheckboxes.forEach(checkbox => {
+            checkbox.checked = false;
+        });
+    }
+
+    function clearAllFilters() {
+        searchForm.reset();
+        clearAllAllergens();
+        quickActionBtns.forEach(btn => btn.classList.remove('active'));
+    }
+
+    function selectAllergen(allergenName) {
+        const checkbox = document.querySelector(`input[name="allergens"][value="${allergenName}"]`);
+        if (checkbox) {
+            checkbox.checked = true;
+        }
+    }
+
+    function selectCommonAllergens() {
+        const commonAllergens = ['Milk', 'Eggs', 'Peanuts', 'Tree Nuts', 'Soy', 'Wheat'];
+        clearAllAllergens();
+        commonAllergens.forEach(allergen => {
+            selectAllergen(allergen);
+        });
+    }
+
+    // Select All / Clear All buttons
+    selectAllBtn.addEventListener('click', function() {
+        selectAllAllergens();
+        updateAllergenCount();
+    });
+
+    clearAllBtn.addEventListener('click', function() {
+        clearAllAllergens();
+        updateAllergenCount();
+    });
+
+    // Reset form
+    resetFormBtn.addEventListener('click', function() {
+        searchForm.reset();
+        clearAllAllergens();
+        quickActionBtns.forEach(btn => btn.classList.remove('active'));
+        updateAllergenCount();
+    });
+
+    // Update allergen count display
+    function updateAllergenCount() {
+        const checkedCount = document.querySelectorAll('input[name="allergens"]:checked').length;
+        const totalCount = allergenCheckboxes.length;
+        
+        // Update the label to show count
+        const label = document.querySelector('.block.text-sm.font-medium.text-gray-700');
+        if (label) {
+            label.textContent = `Exclude Allergens (${checkedCount}/${totalCount} selected)`;
+        }
+    }
+
+    // Initialize allergen count
+    updateAllergenCount();
+
+    // Update count when checkboxes change
+    allergenCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateAllergenCount);
+    });
+
+    // Auto-submit on filter changes (with debounce)
+    let submitTimeout;
+    function debouncedSubmit() {
+        try {
+            clearTimeout(submitTimeout);
+            submitTimeout = setTimeout(() => {
+                showLoading();
+                searchForm.submit();
+            }, 500);
+        } catch (error) {
+            handleError(error, 'debounced submit');
+        }
+    }
+
+    // Auto-submit on risk level change
+    document.getElementById('risk_level').addEventListener('change', debouncedSubmit);
+    document.getElementById('sort').addEventListener('change', debouncedSubmit);
+
+    // Auto-submit on allergen checkbox changes
+    allergenCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', debouncedSubmit);
+    });
+
+    // Search input with debounce
+    const searchInput = document.getElementById('search');
+    const searchSuggestions = document.getElementById('searchSuggestions');
+    const recentSearchesList = document.getElementById('recentSearchesList');
+    
+    // Search suggestions functionality
+    function showSearchSuggestions() {
+        if (searchInput.value.trim() === '') {
+            searchSuggestions.classList.remove('hidden');
+            loadRecentSearches();
+        } else {
+            searchSuggestions.classList.add('hidden');
+        }
+    }
+    
+    function hideSearchSuggestions() {
+        setTimeout(() => {
+            searchSuggestions.classList.add('hidden');
+        }, 200);
+    }
+    
+    function loadRecentSearches() {
+        const recentSearches = JSON.parse(localStorage.getItem('recentSearches') || '[]');
+        recentSearchesList.innerHTML = '';
+        
+        recentSearches.slice(0, 5).forEach(search => {
+            const item = document.createElement('div');
+            item.className = 'flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer';
+            item.innerHTML = `
+                <span class="text-sm text-gray-700">${search}</span>
+                <button class="text-xs text-gray-400 hover:text-red-500" onclick="removeRecentSearch('${search}')">×</button>
+            `;
+            item.addEventListener('click', () => {
+                searchInput.value = search;
+                searchSuggestions.classList.add('hidden');
+                debouncedSubmit();
+            });
+            recentSearchesList.appendChild(item);
+        });
+    }
+    
+    function addRecentSearch(search) {
+        if (!search.trim()) return;
+        
+        const recentSearches = JSON.parse(localStorage.getItem('recentSearches') || '[]');
+        const filtered = recentSearches.filter(s => s !== search);
+        filtered.unshift(search);
+        
+        localStorage.setItem('recentSearches', JSON.stringify(filtered.slice(0, 10)));
+    }
+    
+    function removeRecentSearch(search) {
+        const recentSearches = JSON.parse(localStorage.getItem('recentSearches') || '[]');
+        const filtered = recentSearches.filter(s => s !== search);
+        localStorage.setItem('recentSearches', JSON.stringify(filtered));
+        loadRecentSearches();
+    }
+    
+    // Search input event listeners
+    searchInput.addEventListener('focus', showSearchSuggestions);
+    searchInput.addEventListener('blur', hideSearchSuggestions);
+    searchInput.addEventListener('input', function() {
+        debouncedSubmit();
+        if (this.value.trim() === '') {
+            showSearchSuggestions();
+        } else {
+            searchSuggestions.classList.add('hidden');
+        }
+    });
+    
+    // Suggestion tag clicks
+    document.querySelectorAll('.suggestion-tag').forEach(tag => {
+        tag.addEventListener('click', function() {
+            searchInput.value = this.textContent;
+            searchSuggestions.classList.add('hidden');
+            addRecentSearch(this.textContent);
+            debouncedSubmit();
+        });
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        // Ctrl/Cmd + F to focus search
+        if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+            e.preventDefault();
+            searchInput.focus();
+        }
+        
+        // Escape to clear search
+        if (e.key === 'Escape') {
+            searchInput.value = '';
+            searchInput.focus();
+        }
+    });
+
+    // Show welcome message on first visit
+    if (!localStorage.getItem('hasVisited')) {
+        setTimeout(() => {
+            if (window.showToast) {
+                window.showToast('Welcome! Use the quick actions to filter recipes by common dietary needs.', 'info');
+            }
+            localStorage.setItem('hasVisited', 'true');
+        }, 1000);
+    }
+});
+</script> 

@@ -13,7 +13,7 @@ from django.utils import timezone
 # Add the allergen_filtering directory to the path
 sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), 'allergen_filtering'))
 
-from allergen_dictionary import get_allergen_dictionary
+from allergen_filtering.allergen_dictionary import get_allergen_dictionary
 from recipes.models import AllergenCategory, AllergenSynonym, AllergenDictionaryVersion
 
 

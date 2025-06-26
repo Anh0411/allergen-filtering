@@ -1,0 +1,181 @@
+{% comment %}
+Shared Utilities Component
+This component provides common JavaScript utilities used across the application.
+Include this component in any template that needs these utilities.
+{% endcomment %}
+
+<script>
+// Global utility functions
+window.RecipeUtils = {
+    // Error handling utility
+    handleError: function(error, context = '') {
+        console.error(`Error in ${context}:`, error);
+        if (window.showToast) {
+            window.showToast(`An error occurred: ${error.message || 'Please try again'}`, 'error');
+        }
+    },
+
+    // Debounce utility
+    debounce: function(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    },
+
+    // Loading state management
+    showLoading: function(element) {
+        if (element) {
+            element.disabled = true;
+            const textElement = element.querySelector('[data-loading-text]');
+            if (textElement) {
+                textElement.textContent = textElement.dataset.loadingText || 'Loading...';
+            }
+        }
+    },
+
+    hideLoading: function(element, originalText = 'Submit') {
+        if (element) {
+            element.disabled = false;
+            const textElement = element.querySelector('[data-loading-text]');
+            if (textElement) {
+                textElement.textContent = originalText;
+            }
+        }
+    },
+
+    // Local storage utilities
+    storage: {
+        get: function(key, defaultValue = null) {
+            try {
+                const item = localStorage.getItem(key);
+                return item ? JSON.parse(item) : defaultValue;
+            } catch (error) {
+                console.error('Error reading from localStorage:', error);
+                return defaultValue;
+            }
+        },
+
+        set: function(key, value) {
+            try {
+                localStorage.setItem(key, JSON.stringify(value));
+                return true;
+            } catch (error) {
+                console.error('Error writing to localStorage:', error);
+                return false;
+            }
+        },
+
+        remove: function(key) {
+            try {
+                localStorage.removeItem(key);
+                return true;
+            } catch (error) {
+                console.error('Error removing from localStorage:', error);
+                return false;
+            }
+        }
+    },
+
+    // URL parameter utilities
+    url: {
+        getParams: function() {
+            const params = new URLSearchParams(window.location.search);
+            const result = {};
+            for (const [key, value] of params) {
+                if (result[key]) {
+                    if (Array.isArray(result[key])) {
+                        result[key].push(value);
+                    } else {
+                        result[key] = [result[key], value];
+                    }
+                } else {
+                    result[key] = value;
+                }
+            }
+            return result;
+        },
+
+        buildUrl: function(params) {
+            const url = new URL(window.location);
+            Object.keys(params).forEach(key => {
+                if (params[key] !== null && params[key] !== undefined && params[key] !== '') {
+                    if (Array.isArray(params[key])) {
+                        url.searchParams.delete(key);
+                        params[key].forEach(value => {
+                            url.searchParams.append(key, value);
+                        });
+                    } else {
+                        url.searchParams.set(key, params[key]);
+                    }
+                } else {
+                    url.searchParams.delete(key);
+                }
+            });
+            return url.toString();
+        }
+    },
+
+    // Form utilities
+    form: {
+        serialize: function(form) {
+            const formData = new FormData(form);
+            const data = {};
+            for (const [key, value] of formData.entries()) {
+                if (data[key]) {
+                    if (Array.isArray(data[key])) {
+                        data[key].push(value);
+                    } else {
+                        data[key] = [data[key], value];
+                    }
+                } else {
+                    data[key] = value;
+                }
+            }
+            return data;
+        },
+
+        reset: function(form) {
+            form.reset();
+            // Trigger change events for custom elements
+            const inputs = form.querySelectorAll('input, select, textarea');
+            inputs.forEach(input => {
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+            });
+        }
+    },
+
+    // Animation utilities
+    animation: {
+        fadeIn: function(element, duration = 300) {
+            element.style.opacity = '0';
+            element.style.display = 'block';
+            element.style.transition = `opacity ${duration}ms ease-in-out`;
+            
+            requestAnimationFrame(() => {
+                element.style.opacity = '1';
+            });
+        },
+
+        fadeOut: function(element, duration = 300) {
+            element.style.transition = `opacity ${duration}ms ease-in-out`;
+            element.style.opacity = '0';
+            
+            setTimeout(() => {
+                element.style.display = 'none';
+            }, duration);
+        }
+    }
+};
+
+// Auto-initialize utilities when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    // Add any initialization logic here
+    console.log('Recipe utilities initialized');
+});
+</script> 

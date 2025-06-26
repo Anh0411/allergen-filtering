@@ -1,0 +1,82 @@
+<!-- Toast Container - This will be automatically created by the JavaScript -->
+<div id="toastContainer" class="fixed top-4 right-4 z-50 space-y-2"></div>
+
+<script>
+// Global toast notification system
+window.showToast = function(message, type = 'info') {
+    try {
+        // Get or create toast container
+        let toastContainer = document.getElementById('toastContainer');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.id = 'toastContainer';
+            toastContainer.className = 'fixed top-4 right-4 z-50 space-y-2';
+            document.body.appendChild(toastContainer);
+        }
+
+        // Remove existing toasts if too many
+        const existingToasts = toastContainer.querySelectorAll('.toast');
+        if (existingToasts.length >= 3) {
+            existingToasts[0].remove();
+        }
+
+        // Create toast element
+        const toast = document.createElement('div');
+        toast.className = `toast px-4 py-3 rounded-lg shadow-lg text-white transform translate-x-full transition-all duration-300 max-w-sm`;
+        
+        // Set color and icon based on type
+        const toastConfig = {
+            success: { bg: 'bg-green-500', icon: '✓' },
+            error: { bg: 'bg-red-500', icon: '✕' },
+            warning: { bg: 'bg-yellow-500', icon: '⚠' },
+            info: { bg: 'bg-blue-500', icon: 'ℹ' }
+        };
+        
+        const config = toastConfig[type] || toastConfig.info;
+        toast.classList.add(config.bg);
+        
+        toast.innerHTML = `
+            <div class="flex items-center">
+                <span class="mr-2">${config.icon}</span>
+                <span class="text-sm font-medium">${message}</span>
+                <button class="ml-2 text-white hover:text-gray-200" onclick="this.parentElement.parentElement.remove()">×</button>
+            </div>
+        `;
+        
+        toastContainer.appendChild(toast);
+
+        // Animate in
+        requestAnimationFrame(() => {
+            toast.classList.remove('translate-x-full');
+        });
+
+        // Auto-remove after 4 seconds
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.classList.add('translate-x-full');
+                setTimeout(() => {
+                    if (toast.parentNode) {
+                        toast.remove();
+                    }
+                }, 300);
+            }
+        }, 4000);
+
+        return toast;
+    } catch (error) {
+        console.error('Toast error:', error);
+        // Fallback to alert if toast fails
+        alert(message);
+    }
+};
+
+// Auto-initialize toast container when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    if (!document.getElementById('toastContainer')) {
+        const toastContainer = document.createElement('div');
+        toastContainer.id = 'toastContainer';
+        toastContainer.className = 'fixed top-4 right-4 z-50 space-y-2';
+        document.body.appendChild(toastContainer);
+    }
+});
+</script> 

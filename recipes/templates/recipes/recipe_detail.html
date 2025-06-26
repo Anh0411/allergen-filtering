@@ -73,25 +73,22 @@
               <span class="text-sm text-gray-600">Analysis Confidence:</span>
               <span class="font-bold text-gray-900 ml-2">
                 {% for allergen, score in recipe.analysis_result.confidence_scores.items %}
-                    {% if forloop.first %}{{ score|floatformat:1 }}%{% endif %}
+                    {% if forloop.first %}{% widthratio score 1 100 %}{% endif %}
                 {% endfor %}
               </span>
             </div>
             <div class="w-32 bg-gray-200 rounded-full h-3">
               <div class="bg-yellow-600 h-3 rounded-full transition-all duration-300 confidence-bar" 
-                   data-confidence="
-                      {% for allergen, score in recipe.analysis_result.confidence_scores.items %}
-                          {% if forloop.first %}{{ score|floatformat:0 }}{% endif %}
-                      {% endfor %}
-                   "></div>
+                   data-confidence="{% for allergen, score in recipe.analysis_result.confidence_scores.items %}{% if forloop.first %}{% widthratio score 1 100 %}{% endif %}{% endfor %}"></div>
             </div>
           </div>
           <p class="text-xs text-gray-500 mt-1 text-center">
             {% for allergen, score in recipe.analysis_result.confidence_scores.items %}
                 {% if forloop.first %}
-                    {% if score >= 80 %}
+                    {% widthratio score 1 100 as percentage %}
+                    {% if percentage >= 80 %}
                       High confidence analysis
-                    {% elif score >= 60 %}
+                    {% elif percentage >= 60 %}
                       Moderate confidence analysis
                     {% else %}
                       Low confidence - manual review recommended
@@ -146,7 +143,7 @@
               {% for allergen in detected_allergens %}
               <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800 border border-red-200">
                 {{ allergen.category.name }}
-                <span class="ml-1 text-xs text-red-600">({{ allergen.confidence|floatformat:0 }}%)</span>
+                <span class="ml-1 text-xs text-red-600">({% widthratio allergen.confidence 1 100 %}%)</span>
               </span>
               {% endfor %}
             </div>
@@ -161,7 +158,7 @@
               </div>
               <div class="flex justify-between">
                 <span class="text-sm text-gray-600">Highest Confidence:</span>
-                <span class="font-medium">{{ detected_allergens.0.confidence|floatformat:1 }}%</span>
+                <span class="font-medium">{% widthratio detected_allergens.0.confidence 1 100 %}%</span>
               </div>
               <div class="flex justify-between">
                 <span class="text-sm text-gray-600">Risk Level:</span>
@@ -218,11 +215,12 @@
             <div class="flex justify-between items-start mb-3">
               <div class="flex items-center">
                 <h3 class="font-semibold text-red-800 text-lg">{{ allergen.category.name }}</h3>
-                {% if allergen.confidence >= 80 %}
+                {% widthratio allergen.confidence 1 100 as percentage %}
+                {% if percentage >= 80 %}
                 <span class="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                   High Confidence
                 </span>
-                {% elif allergen.confidence >= 60 %}
+                {% elif percentage >= 60 %}
                 <span class="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
                   Moderate Confidence
                 </span>
@@ -234,10 +232,12 @@
               </div>
               <div class="text-right">
                 <div class="text-sm text-gray-600 mb-1">Confidence Score</div>
-                <div class="text-lg font-bold text-gray-900">{{ allergen.confidence|floatformat:1 }}%</div>
-                <div class="w-20 bg-gray-200 rounded-full h-2 mt-1">
-                  <div class="bg-red-500 h-2 rounded-full allergen-confidence-bar" 
-                       data-confidence="{{ allergen.confidence|floatformat:0 }}"></div>
+                <div class="flex items-center justify-end space-x-3">
+                  <div class="text-lg font-bold text-gray-900">{% widthratio allergen.confidence 1 100 %}%</div>
+                  <div class="w-20 bg-gray-200 rounded-full h-2">
+                    <div class="bg-red-500 h-2 rounded-full allergen-confidence-bar" 
+                         data-confidence="{% widthratio allergen.confidence 1 100 %}"></div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -364,7 +364,7 @@
           {% endif %}
           <div>
             <span class="font-medium">Analysis Date:</span>
-            <span>{{ recipe.analysis_result.analysis_date|date:"M d, Y"|default:"Not analyzed" }}</span>
+            <span>{% if recipe.analysis_result.analysis_date %}{{ recipe.analysis_result.analysis_date|date:"M d, Y" }}{% else %}Not analyzed{% endif %}</span>
           </div>
           <div>
             <span class="font-medium">Total Ingredients:</span>

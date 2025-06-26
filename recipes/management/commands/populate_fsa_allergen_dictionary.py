@@ -9,7 +9,7 @@ ALLERGEN_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.
 sys.path.append(ALLERGEN_PATH)
 
 try:
-    from fsa_allergen_dictionary import get_fsa_allergen_dictionary
+    from allergen_filtering.fsa_allergen_dictionary import get_fsa_allergen_dictionary
 except ImportError:
     # Try alternative import path
     sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))))

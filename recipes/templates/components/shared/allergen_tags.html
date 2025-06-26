@@ -1,0 +1,30 @@
+{% comment %}
+Allergen Tags Component
+Usage: {% include 'components/shared/allergen_tags.html' with detected_allergens=recipe.analysis_result.detected_allergens %}
+Parameters:
+- detected_allergens: dictionary of detected allergens
+- max_display: maximum number of tags to show (default: 3)
+- show_more: boolean to show "+X more" indicator (default: true)
+{% endcomment %}
+
+{% load static %}
+
+{% if detected_allergens %}
+<div class="mb-4">
+    <p class="text-xs text-gray-500 mb-1">Contains:</p>
+    <div class="flex flex-wrap gap-1">
+        {% for allergen_name, terms in detected_allergens.items %}
+            {% if forloop.counter <= 3 %}
+            <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-800">
+                {{ allergen_name|title }}
+            </span>
+            {% endif %}
+        {% endfor %}
+        {% if detected_allergens|length > 3 %}
+        <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-600">
+            +{{ detected_allergens|length|add:"-3" }} more
+        </span>
+        {% endif %}
+    </div>
+</div>
+{% endif %} 
