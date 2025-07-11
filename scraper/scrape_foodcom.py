@@ -27,6 +27,9 @@ django.setup()
 
 from recipes.models import Recipe
 
+BASE_URL_FIRST = 'https://www.food.com/search/'
+BASE_URL_PAGED = 'https://www.food.com/search/?pn={}'
+
 def get_rendered_html(url, max_retries=3):
     for attempt in range(max_retries):
         try:
@@ -38,10 +41,17 @@ def get_rendered_html(url, max_retries=3):
                 # Set a shorter timeout for initial page load
                 page.goto(url, timeout=30000, wait_until="domcontentloaded")
                 
-                # Wait for content to load
+                # Wait for search results container and check for recipe divs
                 try:
-                    page.wait_for_selector('h1', timeout=10000)
+                    # First wait for the search results container
+                    page.wait_for_selector('.search-results', timeout=10000)
+                    
+                    # Then wait for at least one recipe div to be present
+                    page.wait_for_selector('.fd-tile.fd-recipe', timeout=20000)
+                    
+                    # Additional wait to ensure content is fully loaded
                     page.wait_for_load_state('networkidle', timeout=10000)
+                    
                 except Exception as e:
                     logger.warning(f"Selector not found quickly on {url}: {e}")
                     time.sleep(3)
@@ -54,6 +64,77 @@ def get_rendered_html(url, max_retries=3):
             time.sleep(5)
     logger.error(f"Failed to load {url} after {max_retries} attempts.")
     return None
+
+def scroll_until_next_page(page, current_page, max_pages):
+    """Scroll the page until the URL changes to the next page number."""
+    if current_page >= max_pages:
+        return None
+        
+    next_page = current_page + 1
+    target_url = f"https://www.food.com/search/?pn={next_page}"
+    
+    logger.info(f"Scrolling to load page {next_page}")
+    
+    # Scroll in smaller increments with pauses
+    for _ in range(10):  # Try up to 10 scroll attempts
+        # Scroll down
+        page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+        time.sleep(1)  # Wait for content to load
+        
+        # Check if URL has changed
+        current_url = page.url
+        if target_url in current_url:
+            logger.info(f"Successfully loaded page {next_page}")
+            time.sleep(2)  # Additional wait after URL change
+            return next_page
+            
+    logger.warning(f"Failed to load page {next_page} after scrolling")
+    return None
+
+def get_all_recipe_links(max_pages, start_page=1):
+    """Get all recipe links by scrolling through pages, starting from start_page, handling infinite scroll."""
+    all_links = []
+    seen_links = set()
+    current_page = 1
+    
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
+        
+        logger.info(f"Loading initial page")
+        page.goto(BASE_URL_FIRST, wait_until="domcontentloaded")
+        
+        # Scroll and collect links page by page
+        while current_page <= max_pages:
+            page.wait_for_timeout(3000)
+            html = page.content()
+            soup = BeautifulSoup(html, 'html.parser')
+            recipe_divs = soup.find_all('div', class_='fd-tile fd-recipe')
+            new_links = [div.get('data-url') for div in recipe_divs if div.get('data-url')]
+            
+            if current_page < start_page:
+                # Just track seen links before start_page
+                for link in new_links:
+                    seen_links.add(link)
+                logger.info(f"Page {current_page}: Skipping, tracking {len(new_links)} links (total seen: {len(seen_links)})")
+            else:
+                # Only add links not seen before (for start_page), or all links for later pages
+                added_this_page = 0
+                for link in new_links:
+                    if link not in seen_links and link not in all_links:
+                        all_links.append(link)
+                        added_this_page += 1
+                logger.info(f"Page {current_page}: Added {added_this_page} new links (total unique links: {len(all_links)})")
+            
+            # Try to load next page
+            next_page = scroll_until_next_page(page, current_page, max_pages)
+            if not next_page:
+                break
+            current_page = next_page
+        
+        browser.close()
+    
+    return all_links
 
 def scrape_recipe(url):
     try:
@@ -137,48 +218,61 @@ def scrape_recipe(url):
         logger.error(f"Error scraping recipe {url}: {str(e)}", exc_info=True)
         return None
 
-def main(start_id=None, end_id=None):
-    if not start_id:
-        start_id = 1
-    if not end_id:
-        end_id = start_id + 1000
+def main(max_pages=None, test_mode=False, start_page=1):
+    if not max_pages:
+        max_pages = float('inf')
         
-    logger.info(f'Starting to scrape recipes from ID {start_id} to {end_id}...')
+    if test_mode:
+        logger.info('TEST MODE ENABLED: No recipes will be saved to the database.')
     
-    # Get the highest recipe ID we already have
-    existing_recipes = Recipe.objects.all()
-    existing_ids = set()
-    for recipe in existing_recipes:
-        if recipe.original_url:
-            match = re.search(r'recipe/([^/]+)-(\d+)', recipe.original_url)
-            if match:
-                existing_ids.add(int(match.group(2)))
+    logger.info(f'Starting to scrape up to {max_pages} pages, starting from page {start_page}...')
     
-    logger.info(f'Found {len(existing_ids)} existing recipe IDs')
+    # Get all recipe links first
+    all_links = get_all_recipe_links(max_pages, start_page=start_page)
+    logger.info(f'Found total of {len(all_links)} unique recipe links')
     
-    # Scrape recipes in the ID range
-    for recipe_id in range(start_id, end_id + 1):
-        if recipe_id in existing_ids:
-            logger.info(f'Skipping existing recipe ID: {recipe_id}')
+    # Now scrape each recipe
+    total_links = len(all_links)
+    for index, link in enumerate(all_links, 1):
+        if not link:  # Skip empty links
             continue
             
-        url = f'https://www.food.com/recipe/recipe-{recipe_id}'
-        logger.info(f'Scraping recipe ID {recipe_id}: {url}')
+        full_url = f'https://www.food.com{link}' if link.startswith('/') else link
+        logger.info(f'Scraping recipe {index}/{total_links}: {full_url}')
         
-        data = scrape_recipe(url)
+        existing_recipe = Recipe.objects.filter(original_url=full_url).first() if not test_mode else None
+        
+        if existing_recipe and existing_recipe.scraped_ingredients_text and existing_recipe.instructions:
+            logger.info(f'Already scraped with complete data: {full_url}')
+            continue
+            
+        if existing_recipe:
+            logger.info(f'Re-scraping incomplete recipe: {full_url}')
+            
+        data = scrape_recipe(full_url)
         if data:
             try:
-                Recipe.objects.create(**data)
-                logger.info(f'Scraped and saved: {url}')
+                if test_mode:
+                    logger.info(f"[TEST MODE] Would save recipe: {full_url}")
+                else:
+                    if existing_recipe:
+                        for key, value in data.items():
+                            setattr(existing_recipe, key, value)
+                        existing_recipe.save()
+                        logger.info(f'Updated recipe: {full_url}')
+                    else:
+                        Recipe.objects.create(**data)
+                        logger.info(f'Scraped and saved: {full_url}')
             except Exception as e:
-                logger.error(f"Error saving recipe {url}: {str(e)}")
+                logger.error(f"Error saving recipe {full_url}: {str(e)}")
         else:
-            logger.error(f'Failed to scrape: {url}')
+            logger.error(f'Failed to scrape: {full_url}')
         time.sleep(1)  # Be polite
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Scrape Food.com recipes.')
-    parser.add_argument('--start-id', type=int, help='Starting recipe ID')
-    parser.add_argument('--end-id', type=int, help='Ending recipe ID')
+    parser.add_argument('--max-pages', type=int, help='Maximum number of pages to scrape (default: all)')
+    parser.add_argument('--test', action='store_true', help='Run in test mode (do not save to database)')
+    parser.add_argument('--start-page', type=int, default=1, help='Page number to start scraping from (default: 1)')
     args = parser.parse_args()
-    main(start_id=args.start_id, end_id=args.end_id) 
+    main(max_pages=args.max_pages, test_mode=args.test, start_page=args.start_page) 
