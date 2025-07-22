@@ -412,8 +412,40 @@ class AllergenAnalysisManager:
         
         return self.analyze_recipe_batch(recipe_data_list)
 
+    def create_missing_analysis_results(self) -> int:
+        """Create missing AllergenAnalysisResult records for recipes with risk_level but no analysis_result"""
+        # Find recipes that have risk_level but no analysis_result
+        recipes_without_analysis = Recipe.objects.filter(
+            risk_level__isnull=False,
+            analysis_result__isnull=True
+        )
+        
+        logger.info(f"Found {recipes_without_analysis.count()} recipes with risk_level but no analysis_result")
+        
+        created_count = 0
+        for recipe in recipes_without_analysis:
+            try:
+                # Create basic AllergenAnalysisResult with available data
+                analysis_result = AllergenAnalysisResult.objects.create(
+                    recipe=recipe,
+                    risk_level=recipe.risk_level,
+                    confidence_scores={'overall': recipe.nlp_confidence_score or 0.0},
+                    detected_allergens={},  # Empty since we don't have detailed data
+                    recommendations=['Analysis completed with basic data'],
+                    total_ingredients=0,
+                    analyzed_ingredients=0,
+                    processing_time=0.0
+                )
+                created_count += 1
+                logger.debug(f"Created analysis result for {recipe.title}")
+            except Exception as e:
+                logger.error(f"Error creating analysis result for {recipe.title}: {e}")
+        
+        logger.info(f"Created {created_count} missing AllergenAnalysisResult records")
+        return created_count
+
 def main(recipe_ids: Optional[List[int]] = None, max_workers: int = 3, 
-         batch_size: int = 50, retry_failed: bool = False):
+         batch_size: int = 50, retry_failed: bool = False, create_missing: bool = True):
     """Main function to run allergen analysis"""
     
     # Create configuration
@@ -423,6 +455,13 @@ def main(recipe_ids: Optional[List[int]] = None, max_workers: int = 3,
     )
     
     manager = AllergenAnalysisManager(config)
+    
+    # Create missing analysis results if requested
+    if create_missing:
+        logger.info("Creating missing AllergenAnalysisResult records...")
+        created_count = manager.create_missing_analysis_results()
+        if created_count > 0:
+            logger.info(f"Created {created_count} missing analysis result records")
     
     if retry_failed:
         logger.info("Retrying failed allergen analyses")
@@ -458,6 +497,8 @@ if __name__ == "__main__":
     parser.add_argument('--max-workers', type=int, default=3, help='Maximum number of worker threads')
     parser.add_argument('--batch-size', type=int, default=50, help='Batch size for processing')
     parser.add_argument('--retry-failed', action='store_true', help='Retry failed analyses')
+    parser.add_argument('--create-missing', action='store_true', default=True, help='Create missing AllergenAnalysisResult records')
+    parser.add_argument('--no-create-missing', dest='create_missing', action='store_false', help='Skip creating missing AllergenAnalysisResult records')
     parser.add_argument('--stats', action='store_true', help='Show statistics only')
     
     args = parser.parse_args()
@@ -476,4 +517,4 @@ if __name__ == "__main__":
             for risk, count in stats['risk_distribution'].items():
                 logger.info(f"  {risk}: {count}")
     else:
-        main(args.recipe_ids, args.max_workers, args.batch_size, args.retry_failed) 
+        main(args.recipe_ids, args.max_workers, args.batch_size, args.retry_failed, args.create_missing) 

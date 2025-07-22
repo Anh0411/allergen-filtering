@@ -19,6 +19,17 @@
             </span>
           </div>
           <p class="text-sm text-green-700 text-center">This recipe appears to be allergen-free based on our analysis.</p>
+          
+          {% if can_annotate and existing_annotation %}
+          <div class="mt-3 pt-3 border-t border-green-200">
+            <div class="flex items-center justify-center text-xs text-green-600">
+              <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+              </svg>
+              You have annotated this recipe
+            </div>
+          </div>
+          {% endif %}
         </div>
         {% elif recipe.analysis_result.risk_level == 'medium' %}
         <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-4 max-w-md">
@@ -29,6 +40,17 @@
             </span>
           </div>
           <p class="text-sm text-yellow-700 text-center">Contains potential allergens. Review ingredients carefully.</p>
+          
+          {% if can_annotate and existing_annotation %}
+          <div class="mt-3 pt-3 border-t border-yellow-200">
+            <div class="flex items-center justify-center text-xs text-yellow-600">
+              <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+              </svg>
+              You have annotated this recipe
+            </div>
+          </div>
+          {% endif %}
         </div>
         {% elif recipe.analysis_result.risk_level == 'high' %}
         <div class="bg-orange-50 border border-orange-200 rounded-xl p-4 max-w-md">
@@ -39,6 +61,17 @@
             </span>
           </div>
           <p class="text-sm text-orange-700 text-center">Multiple allergens detected. Not recommended for allergy sufferers.</p>
+          
+          {% if can_annotate and existing_annotation %}
+          <div class="mt-3 pt-3 border-t border-orange-200">
+            <div class="flex items-center justify-center text-xs text-orange-600">
+              <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+              </svg>
+              You have annotated this recipe
+            </div>
+          </div>
+          {% endif %}
         </div>
         {% elif recipe.analysis_result.risk_level == 'critical' %}
         <div class="bg-red-50 border border-red-200 rounded-xl p-4 max-w-md">
@@ -49,6 +82,17 @@
             </span>
           </div>
           <p class="text-sm text-red-700 text-center">Contains major allergens. Avoid if you have food allergies.</p>
+          
+          {% if can_annotate and existing_annotation %}
+          <div class="mt-3 pt-3 border-t border-red-200">
+            <div class="flex items-center justify-center text-xs text-red-600">
+              <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+              </svg>
+              You have annotated this recipe
+            </div>
+          </div>
+          {% endif %}
         </div>
         {% else %}
         <!-- Fallback for recipes without analysis -->
@@ -60,6 +104,17 @@
             </span>
           </div>
           <p class="text-sm text-gray-700 text-center">This recipe has not been analyzed for allergens yet.</p>
+          
+          {% if can_annotate and existing_annotation %}
+          <div class="mt-3 pt-3 border-t border-gray-200">
+            <div class="flex items-center justify-center text-xs text-gray-600">
+              <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+              </svg>
+              You have annotated this recipe
+            </div>
+          </div>
+          {% endif %}
         </div>
         {% endif %}
       </div>
@@ -392,7 +447,25 @@
         Print Recipe
       </button>
       
-      <button onclick="copyIngredients()" 
+      {% if can_annotate %}
+      <a href="{% url 'annotate_recipe' recipe.id %}"
+        class="inline-flex items-center px-6 py-2 bg-blue-600 text-white rounded-full font-semibold shadow hover:bg-blue-700 transition print:hidden">
+        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+        </svg>
+        {% if existing_annotation %}Edit{% else %}Add{% endif %} Annotation
+      </a>
+      {% endif %}
+      
+      <a href="{% url 'feedback_form' recipe.id %}"
+        class="inline-flex items-center px-6 py-2 bg-purple-600 text-white rounded-full font-semibold shadow hover:bg-purple-700 transition print:hidden">
+        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        Provide Feedback
+      </a>
+      
+      <button onclick="copyIngredients()"
         class="inline-flex items-center px-6 py-2 bg-green-600 text-white rounded-full font-semibold shadow hover:bg-green-700 transition print:hidden">
         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>

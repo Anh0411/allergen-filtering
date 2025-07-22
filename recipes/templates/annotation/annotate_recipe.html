@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="max-w-2xl mx-auto bg-white rounded-lg shadow p-8 mt-8">
+    <h2 class="text-2xl font-bold mb-4">Annotate Recipe: {{ recipe.title }}</h2>
+    
+    {% if success_message %}
+        <div class="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded">
+            <div class="flex items-center">
+                <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                </svg>
+                <span>{{ success_message }}</span>
+            </div>
+        </div>
+    {% endif %}
+    
+    {% if error_message %}
+        <div class="mb-4 p-3 bg-red-100 text-red-700 rounded">
+            {{ error_message }}
+        </div>
+    {% endif %}
+    
+    <form method="post">
+        {% csrf_token %}
+        <div class="mb-4">
+            <h3 class="font-semibold mb-2">Ingredients:</h3>
+            <ul class="list-disc pl-6">
+                {% for ingredient in ingredients %}
+                    <li>{{ ingredient }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        <div class="mb-4">
+            <h3 class="font-semibold mb-2">Instructions:</h3>
+            <ol class="list-decimal pl-6">
+                {% for step in instructions %}
+                    <li>{{ step }}</li>
+                {% endfor %}
+            </ol>
+        </div>
+        <div class="mb-4">
+            <h3 class="font-semibold mb-2">Select Allergens Present:</h3>
+            <div class="grid grid-cols-2 gap-2">
+                {% for allergen in allergen_categories %}
+                    <label class="flex items-center">
+                        <input type="checkbox" name="allergens" value="{{ allergen.id }}"
+                            {% if existing_annotation and allergen in existing_annotation.allergens.all %}checked{% endif %}>
+                        <span class="ml-2">{{ allergen.name }}</span>
+                    </label>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="mb-4">
+            <label for="notes" class="block font-semibold mb-1">Notes (optional):</label>
+            <textarea name="notes" id="notes" rows="3" class="w-full border rounded p-2">{{ existing_annotation.notes|default_if_none:'' }}</textarea>
+        </div>
+        <button type="submit" class="bg-yellow-600 text-white px-6 py-2 rounded font-semibold hover:bg-yellow-700">Save Annotation</button>
+    </form>
+</div>
+{% endblock %} 

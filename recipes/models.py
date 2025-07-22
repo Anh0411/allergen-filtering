@@ -1,6 +1,7 @@
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
+from django.contrib.auth.models import User
 
 # Create your models here.
 
@@ -189,3 +190,36 @@ class AllergenAnalysisResult(models.Model):
 
     def __str__(self):
         return f"Analysis for {self.recipe.title} ({self.analysis_date})"
+
+
+class Annotation(models.Model):
+    recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE, related_name='annotations')
+    annotator = models.ForeignKey(User, on_delete=models.CASCADE, related_name='annotations')
+    allergens = models.ManyToManyField(AllergenCategory, blank=True, related_name='annotations')
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('recipe', 'annotator')
+
+    def __str__(self):
+        return f"Annotation by {self.annotator.username} on {self.recipe.title}"
+
+
+class RecipeFeedback(models.Model):
+    """Stores external user feedback for a recipe's allergen detection, for internal review and ML training only."""
+    recipe = models.ForeignKey('Recipe', on_delete=models.CASCADE, related_name='feedbacks')
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='recipe_feedbacks')
+    feedback_data = models.JSONField(default=dict)  # Store structured feedback (e.g., per allergen detection)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_reviewed = models.BooleanField(default=False)
+    reviewed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='reviewed_feedbacks')
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Feedback for {self.recipe.title} by {self.user.username if self.user else 'Anonymous'} at {self.created_at}"

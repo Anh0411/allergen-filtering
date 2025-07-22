@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Allergen, Ingredient, Recipe, RecipeIngredientItem, AllergenCategory, AllergenAnalysisResult, AllergenSynonym, AllergenDetectionLog, AllergenDictionaryVersion
+from .models import Allergen, Ingredient, Recipe, RecipeIngredientItem, AllergenCategory, AllergenAnalysisResult, AllergenSynonym, AllergenDetectionLog, AllergenDictionaryVersion, Annotation, RecipeFeedback
 
 @admin.register(AllergenCategory)
 class AllergenCategoryAdmin(admin.ModelAdmin):
@@ -18,7 +18,7 @@ class AllergenSynonymAdmin(admin.ModelAdmin):
 
 @admin.register(Recipe)
 class RecipeAdmin(admin.ModelAdmin):
-    list_display = ['title', 'risk_level', 'nlp_confidence_score', 'allergen_count', 'created_at']
+    list_display = ['title', 'risk_level', 'nlp_confidence_score', 'allergen_count', 'annotators', 'created_at']
     list_filter = ['risk_level', 'allergen_categories', 'created_at', 'nlp_analysis_date']
     search_fields = ['title', 'scraped_ingredients_text', 'original_url']
     readonly_fields = ['nlp_analysis_date', 'last_analyzed', 'created_at', 'updated_at']
@@ -44,6 +44,10 @@ class RecipeAdmin(admin.ModelAdmin):
     def allergen_count(self, obj):
         return obj.allergen_categories.count()
     allergen_count.short_description = 'Allergens'
+    
+    def annotators(self, obj):
+        return ", ".join(a.annotator.username for a in obj.annotations.all())
+    annotators.short_description = 'Annotators'
 
 @admin.register(AllergenAnalysisResult)
 class AllergenAnalysisResultAdmin(admin.ModelAdmin):
@@ -67,11 +71,31 @@ class AllergenAnalysisResultAdmin(admin.ModelAdmin):
 
 @admin.register(AllergenDetectionLog)
 class AllergenDetectionLogAdmin(admin.ModelAdmin):
-    list_display = ['recipe', 'allergen_category', 'detected_term', 'confidence_score', 'match_type', 'is_correct']
-    list_filter = ['allergen_category', 'match_type', 'is_correct', 'created_at']
-    search_fields = ['recipe__title', 'detected_term', 'allergen_category__name']
-    readonly_fields = ['created_at']
+    list_display = ['recipe', 'allergen_category', 'detected_term', 'confidence_score', 'match_type', 'is_correct', 'verified_by', 'created_at']
+    list_filter = ['allergen_category', 'match_type', 'is_correct', 'verified_by', 'created_at']
+    search_fields = ['recipe__title', 'detected_term', 'context', 'verified_by']
+    readonly_fields = ['created_at', 'verification_date']
     ordering = ['-created_at']
+    
+    fieldsets = (
+        ('Recipe Information', {
+            'fields': ('recipe', 'allergen_category')
+        }),
+        ('Detection Details', {
+            'fields': ('detected_term', 'confidence_score', 'match_type', 'context', 'position_start', 'position_end')
+        }),
+        ('Verification', {
+            'fields': ('is_correct', 'verified_by', 'verification_date'),
+            'classes': ('collapse',)
+        }),
+        ('Metadata', {
+            'fields': ('created_at',),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('recipe', 'allergen_category')
 
 @admin.register(AllergenDictionaryVersion)
 class AllergenDictionaryVersionAdmin(admin.ModelAdmin):
@@ -104,3 +128,67 @@ class RecipeIngredientItemAdmin(admin.ModelAdmin):
     search_fields = ['recipe__title', 'raw_text', 'name']
     filter_horizontal = ['detected_allergens']
     ordering = ['recipe', 'raw_text']
+
+@admin.register(Annotation)
+class AnnotationAdmin(admin.ModelAdmin):
+    list_display = ['recipe', 'annotator', 'allergen_count', 'created_at', 'updated_at', 'has_notes']
+    list_filter = ['annotator', 'allergens', 'created_at', 'updated_at']
+    search_fields = ['recipe__title', 'annotator__username', 'notes']
+    filter_horizontal = ['allergens']
+    readonly_fields = ['created_at', 'updated_at']
+    ordering = ['-created_at']
+    
+    fieldsets = (
+        ('Recipe Information', {
+            'fields': ('recipe', 'annotator')
+        }),
+        ('Annotation Details', {
+            'fields': ('allergens', 'notes')
+        }),
+        ('Metadata', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def allergen_count(self, obj):
+        return obj.allergens.count()
+    allergen_count.short_description = 'Allergens'
+    
+    def has_notes(self, obj):
+        return bool(obj.notes.strip())
+    has_notes.boolean = True
+    has_notes.short_description = 'Has Notes'
+
+@admin.register(RecipeFeedback)
+class RecipeFeedbackAdmin(admin.ModelAdmin):
+    list_display = ['recipe', 'user', 'created_at', 'is_reviewed', 'reviewed_by', 'reviewed_at']
+    list_filter = ['is_reviewed', 'created_at', 'reviewed_by']
+    search_fields = ['recipe__title', 'user__username', 'notes']
+    readonly_fields = ['created_at', 'feedback_data']
+    ordering = ['-created_at']
+    
+    fieldsets = (
+        ('Recipe Feedback', {
+            'fields': ('recipe', 'user', 'feedback_data', 'notes')
+        }),
+        ('Review Status', {
+            'fields': ('is_reviewed', 'reviewed_by', 'reviewed_at'),
+            'classes': ('collapse',)
+        }),
+        ('Metadata', {
+            'fields': ('created_at',),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def save_model(self, request, obj, form, change):
+        if obj.reviewed_by or obj.reviewed_at:
+            obj.is_reviewed = True
+        super().save_model(request, obj, form, change)
+    
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if request.user.is_superuser or request.user.is_staff:
+            return qs
+        return qs.none()

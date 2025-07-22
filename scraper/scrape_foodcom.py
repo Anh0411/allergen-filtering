@@ -8,6 +8,7 @@ import time
 import argparse
 import logging
 import re
+import concurrent.futures
 
 # Setup logging
 logging.basicConfig(
@@ -79,13 +80,13 @@ def scroll_until_next_page(page, current_page, max_pages):
     for _ in range(10):  # Try up to 10 scroll attempts
         # Scroll down
         page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-        time.sleep(1)  # Wait for content to load
+        time.sleep(0.5)  # Wait for content to load
         
         # Check if URL has changed
         current_url = page.url
         if target_url in current_url:
             logger.info(f"Successfully loaded page {next_page}")
-            time.sleep(2)  # Additional wait after URL change
+            time.sleep(1)  # Additional wait after URL change
             return next_page
             
     logger.warning(f"Failed to load page {next_page} after scrolling")
@@ -218,7 +219,7 @@ def scrape_recipe(url):
         logger.error(f"Error scraping recipe {url}: {str(e)}", exc_info=True)
         return None
 
-def main(max_pages=None, test_mode=False, start_page=1):
+def main(max_pages=None, test_mode=False, start_page=1, workers=8):
     if not max_pages:
         max_pages = float('inf')
         
@@ -231,48 +232,54 @@ def main(max_pages=None, test_mode=False, start_page=1):
     all_links = get_all_recipe_links(max_pages, start_page=start_page)
     logger.info(f'Found total of {len(all_links)} unique recipe links')
     
-    # Now scrape each recipe
-    total_links = len(all_links)
-    for index, link in enumerate(all_links, 1):
-        if not link:  # Skip empty links
-            continue
-            
-        full_url = f'https://www.food.com{link}' if link.startswith('/') else link
-        logger.info(f'Scraping recipe {index}/{total_links}: {full_url}')
-        
-        existing_recipe = Recipe.objects.filter(original_url=full_url).first() if not test_mode else None
-        
-        if existing_recipe and existing_recipe.scraped_ingredients_text and existing_recipe.instructions:
-            logger.info(f'Already scraped with complete data: {full_url}')
-            continue
-            
-        if existing_recipe:
-            logger.info(f'Re-scraping incomplete recipe: {full_url}')
-            
-        data = scrape_recipe(full_url)
-        if data:
+    # Prepare full URLs
+    full_urls = [f'https://www.food.com{link}' if link.startswith('/') else link for link in all_links]
+    
+    # Scrape recipes in parallel
+    logger.info(f'Starting parallel scraping with {workers} workers...')
+    results = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
+        future_to_url = {executor.submit(scrape_recipe, url): url for url in full_urls}
+        for i, future in enumerate(concurrent.futures.as_completed(future_to_url), 1):
+            url = future_to_url[future]
             try:
-                if test_mode:
-                    logger.info(f"[TEST MODE] Would save recipe: {full_url}")
+                data = future.result()
+                results.append((url, data))
+                logger.info(f"[{i}/{len(full_urls)}] Scraped: {url}")
+            except Exception as exc:
+                logger.error(f"[{i}/{len(full_urls)}] Error scraping {url}: {exc}")
+    
+    # Save or log results
+    for url, data in results:
+        if not data:
+            logger.error(f'Failed to scrape: {url}')
+            continue
+        existing_recipe = Recipe.objects.filter(original_url=url).first() if not test_mode else None
+        if existing_recipe and existing_recipe.scraped_ingredients_text and existing_recipe.instructions:
+            logger.info(f'Already scraped with complete data: {url}')
+            continue
+        if existing_recipe:
+            logger.info(f'Re-scraping incomplete recipe: {url}')
+        try:
+            if test_mode:
+                logger.info(f"[TEST MODE] Would save recipe: {url}")
+            else:
+                if existing_recipe:
+                    for key, value in data.items():
+                        setattr(existing_recipe, key, value)
+                    existing_recipe.save()
+                    logger.info(f'Updated recipe: {url}')
                 else:
-                    if existing_recipe:
-                        for key, value in data.items():
-                            setattr(existing_recipe, key, value)
-                        existing_recipe.save()
-                        logger.info(f'Updated recipe: {full_url}')
-                    else:
-                        Recipe.objects.create(**data)
-                        logger.info(f'Scraped and saved: {full_url}')
-            except Exception as e:
-                logger.error(f"Error saving recipe {full_url}: {str(e)}")
-        else:
-            logger.error(f'Failed to scrape: {full_url}')
-        time.sleep(1)  # Be polite
+                    Recipe.objects.create(**data)
+                    logger.info(f'Scraped and saved: {url}')
+        except Exception as e:
+            logger.error(f"Error saving recipe {url}: {str(e)}")
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Scrape Food.com recipes.')
     parser.add_argument('--max-pages', type=int, help='Maximum number of pages to scrape (default: all)')
     parser.add_argument('--test', action='store_true', help='Run in test mode (do not save to database)')
     parser.add_argument('--start-page', type=int, default=1, help='Page number to start scraping from (default: 1)')
+    parser.add_argument('--workers', type=int, default=8, help='Number of concurrent workers for scraping recipes (default: 8)')
     args = parser.parse_args()
-    main(max_pages=args.max_pages, test_mode=args.test, start_page=args.start_page) 
+    main(max_pages=args.max_pages, test_mode=args.test, start_page=args.start_page, workers=args.workers) 
