@@ -190,9 +190,5 @@ class Command(BaseCommand):
 
 
 if __name__ == '__main__':
-    # For testing outside of Django
-    import django
-    django.setup()
-    
     command = Command()
     command.handle(dict_version='1.0.0', description='Test population', force=True) 

@@ -1,6 +1,5 @@
 import os
 import sys
-import django
 import time
 import logging
 import traceback
@@ -9,6 +8,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import random
 from dataclasses import dataclass
 from enum import Enum
+from celery import shared_task
+from django.core.cache import cache
 
 # Setup logging
 logging.basicConfig(
@@ -24,7 +25,6 @@ logger = logging.getLogger(__name__)
 # Setup Django
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'allergen_filtering.settings')
-django.setup()
 
 from recipes.models import Recipe, AllergenAnalysisResult
 
@@ -79,7 +79,7 @@ class AllergenAnalysisProcessor:
                 logger.error(f"Failed to initialize NLP processor: {e}")
                 self.nlp_processor = None
 
-    def analyze_recipe_text(self, recipe_data: Dict[str, Any]) -> Optional[AnalysisResult]:
+    def analyze_recipe_text(self, recipe_data: Dict[str, Any], conflict_policy: str = 'flag_if_either') -> Optional[AnalysisResult]:
         """Analyze allergens in recipe text"""
         if not self.nlp_processor:
             logger.warning("NLP processor not available, skipping allergen analysis")
@@ -106,7 +106,7 @@ class AllergenAnalysisProcessor:
             
             # Perform allergen analysis
             start_time = time.time()
-            analysis = self.nlp_processor.analyze_allergens(analysis_text)
+            analysis = self.nlp_processor.analyze_allergens(analysis_text, conflict_policy=conflict_policy)
             processing_time = time.time() - start_time
             
             # Extract ingredients for detailed analysis
@@ -315,7 +315,7 @@ class AllergenAnalysisManager:
         logger.info(f"Batch allergen analysis completed: {successful_analyses} successful, {failed_analyses} failed")
         return successful_analyses, failed_analyses
 
-    def analyze_existing_recipes(self, recipe_ids: Optional[List[int]] = None) -> Tuple[int, int]:
+    def analyze_existing_recipes(self, recipe_ids: Optional[List[int]] = None, conflict_policy: str = 'flag_if_either') -> Tuple[int, int]:
         """Analyze allergens for existing recipes in database"""
         recipes = self.db_manager.get_unanalyzed_recipes(recipe_ids)
         
@@ -443,6 +443,19 @@ class AllergenAnalysisManager:
         
         logger.info(f"Created {created_count} missing AllergenAnalysisResult records")
         return created_count
+
+    @staticmethod
+    def trigger_reanalysis_all_recipes(conflict_policy: str = 'flag_if_either'):
+        """Queue all recipes for re-analysis (e.g., after dictionary/model update)"""
+        from recipes.models import Recipe
+        recipe_ids = list(Recipe.objects.values_list('id', flat=True))
+        run_batch_analysis.delay(recipe_ids, conflict_policy=conflict_policy)
+
+# Celery task for batch analysis
+@shared_task
+def run_batch_analysis(recipe_ids, conflict_policy='flag_if_either'):
+    manager = AllergenAnalysisManager()
+    return manager.analyze_existing_recipes(recipe_ids, conflict_policy=conflict_policy)
 
 def main(recipe_ids: Optional[List[int]] = None, max_workers: int = 3, 
          batch_size: int = 50, retry_failed: bool = False, create_missing: bool = True):

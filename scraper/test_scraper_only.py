@@ -13,7 +13,6 @@ Usage:
 
 import os
 import sys
-import django
 import time
 import logging
 from typing import List, Dict, Any
@@ -32,7 +31,6 @@ logger = logging.getLogger(__name__)
 # Setup Django
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'allergen_filtering.settings')
-django.setup()
 
 from recipes.models import Recipe
 

@@ -10,6 +10,7 @@ import logging
 import re
 import json
 from urllib.parse import urlparse, urljoin
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Setup logging
 logging.basicConfig(
@@ -408,11 +409,12 @@ def update_recipe_data(existing_recipe, recipe_data):
         logger.error(f"Error updating recipe {existing_recipe.title}: {e}")
         return None
 
-def main(max_recipes=700, test_only=False):
-    """Main function to scrape Pinch of Yum recipes"""
+def main(max_recipes=700, test_only=False, workers=8):
+    """Main function to scrape Pinch of Yum recipes with parallel scraping"""
     logger.info(f"Starting Pinch of Yum recipe scraper...")
     logger.info(f"Target: {max_recipes} recipes")
-    
+    logger.info(f"Parallel scraping with {workers} workers")
+
     if test_only:
         logger.info("Running in test mode - testing selectors on a few recipes")
         success = test_scrape_single_recipe()
@@ -421,60 +423,52 @@ def main(max_recipes=700, test_only=False):
         else:
             logger.error("Test failed!")
         return
-    
+
     # Get recipe links
     logger.info("Collecting recipe links...")
     recipe_links = get_recipe_links_from_main_page(max_recipes)
-    
+
     if not recipe_links:
         logger.error("No recipe links found!")
         return
-    
+
     logger.info(f"Found {len(recipe_links)} recipe links")
-    
+
     # Count existing recipes from pinchofyum.com
     existing_count = Recipe.objects.filter(original_url__contains='pinchofyum.com').count()
     logger.info(f"Existing Pinch of Yum recipes in database: {existing_count}")
-    
+
     successful_scrapes = 0
     failed_scrapes = 0
-    
-    # Scrape each recipe
-    for i, url in enumerate(recipe_links, 1):
-        try:
-            logger.info(f"Processing recipe {i}/{len(recipe_links)}: {url}")
-            
-            # Check if we already have this recipe
-            if Recipe.objects.filter(original_url=url).exists():
-                logger.info(f"Recipe already exists in database: {url}")
-                successful_scrapes += 1
-                continue
-            
-            recipe_data = scrape_recipe(url)
-            if recipe_data:
+    results = []
+
+    # Parallel scraping using ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        future_to_url = {executor.submit(scrape_recipe, url): url for url in recipe_links}
+        for i, future in enumerate(as_completed(future_to_url), 1):
+            url = future_to_url[future]
+            try:
+                recipe_data = future.result()
+                if not recipe_data:
+                    failed_scrapes += 1
+                    logger.warning(f"Failed to scrape recipe: {url}")
+                    continue
+                # Save to DB (thread-safe, Django ORM is safe for this usage)
                 saved_recipe = save_recipe_data(recipe_data)
                 if saved_recipe:
                     successful_scrapes += 1
-                    logger.info(f"Progress: {successful_scrapes}/{max_recipes} recipes scraped successfully")
-                    
-                    # Check if we've reached our target
+                    logger.info(f"[{i}/{len(recipe_links)}] Scraped and saved: {url}")
                     if successful_scrapes >= max_recipes:
                         logger.info(f"Reached target of {max_recipes} recipes!")
                         break
                 else:
                     failed_scrapes += 1
-            else:
+            except Exception as e:
+                logger.error(f"Error processing recipe {url}: {e}")
                 failed_scrapes += 1
-                logger.warning(f"Failed to scrape recipe: {url}")
-            
-            # Be polite - small delay between requests
-            time.sleep(2)
-            
-        except Exception as e:
-            logger.error(f"Error processing recipe {url}: {e}")
-            failed_scrapes += 1
-            continue
-    
+                continue
+            time.sleep(1)  # Polite delay between saves
+
     # Final summary
     total_pinchofyum_recipes = Recipe.objects.filter(original_url__contains='pinchofyum.com').count()
     logger.info(f"Scraping completed!")
@@ -486,7 +480,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Scrape recipes from Pinch of Yum')
     parser.add_argument('--max-recipes', type=int, default=700, help='Maximum number of recipes to scrape')
     parser.add_argument('--test', action='store_true', help='Run in test mode to verify selectors')
-    
+    parser.add_argument('--workers', type=int, default=8, help='Number of concurrent workers for scraping recipes (default: 8)')
     args = parser.parse_args()
-    
-    main(max_recipes=args.max_recipes, test_only=args.test) 
+    main(max_recipes=args.max_recipes, test_only=args.test, workers=args.workers) 

@@ -5,13 +5,11 @@ Test script for the integrated allergen scraper
 
 import os
 import sys
-import django
 import logging
 
 # Setup Django
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'allergen_filtering.settings')
-django.setup()
 
 from scraper.scrape_foodcom_with_allergen_detection import FoodComAllergenScraper
 from recipes.models import Recipe, AllergenAnalysisResult

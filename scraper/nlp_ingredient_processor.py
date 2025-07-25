@@ -12,14 +12,14 @@ from spacy.tokens import Doc, Span
 import pandas as pd
 from django.utils import timezone
 from django.db.models import Count, Avg
+from django.core.cache import cache
+from django.apps import apps
 
 # Setup Django environment for model imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'allergen_filtering.settings')
 
 try:
-    import django
-    django.setup()
     from recipes.models import AllergenCategory, AllergenSynonym, AllergenDetectionLog, AllergenDictionaryVersion
 except ImportError:
     # If Django models are not available, create placeholder classes
@@ -91,6 +91,7 @@ class AllergenAnalysisResult:
     raw_matches: List[Dict[str, Any]]
     total_ingredients: int
     analyzed_ingredients: int
+    model_version: str
 
 class AllergenPatterns:
     """Contains patterns for allergen detection - aligned with FSA 14 major allergens"""
@@ -210,9 +211,13 @@ class AllergenPatterns:
 class NLPIngredientProcessor:
     """NLP processor for ingredient analysis and allergen detection"""
     
-    def __init__(self, model_name: str = "en_core_web_sm"):
-        self.model_name = model_name
-        self.nlp = None
+    def __init__(self, model_path: str = None, conflict_policy: str = 'flag_if_either', model_version: str = "v1.0"):
+        if model_path and os.path.exists(model_path):
+            self.nlp = spacy.load(model_path)
+        else:
+            self.nlp = spacy.load("en_core_web_sm")
+        self.conflict_policy = conflict_policy
+        self.model_version = model_version
         self.matcher = None
         self.phrase_matcher = None
         self.allergen_patterns = {}
@@ -222,23 +227,22 @@ class NLPIngredientProcessor:
     def _initialize_nlp(self):
         """Initialize spaCy NLP model"""
         try:
-            self.nlp = spacy.load(self.model_name)
             self.matcher = Matcher(self.nlp.vocab)
             self.phrase_matcher = PhraseMatcher(self.nlp.vocab)
-            logger.info(f"NLP model '{self.model_name}' loaded successfully")
+            logger.info("NLP model loaded successfully")
         except OSError:
-            logger.warning(f"Model '{self.model_name}' not found. Installing...")
+            logger.warning(f"Model '{self.nlp.name}' not found. Installing...")
             try:
                 import subprocess
-                subprocess.run([sys.executable, "-m", "spacy", "download", self.model_name], check=True)
-                self.nlp = spacy.load(self.model_name)
+                subprocess.run([sys.executable, "-m", "spacy", "download", self.nlp.name], check=True)
+                self.nlp = spacy.load(self.nlp.name)
                 self.matcher = Matcher(self.nlp.vocab)
                 self.phrase_matcher = PhraseMatcher(self.nlp.vocab)
-                logger.info(f"NLP model '{self.model_name}' installed and loaded successfully")
+                logger.info(f"NLP model '{self.nlp.name}' installed and loaded successfully")
             except Exception as e:
                 logger.error(f"Failed to install/load NLP model: {e}")
                 # Fallback to a basic model or raise the error
-                raise RuntimeError(f"Could not load or install spaCy model '{self.model_name}': {e}")
+                raise RuntimeError(f"Could not load or install spaCy model: {e}")
         except Exception as e:
             logger.error(f"Unexpected error loading NLP model: {e}")
             raise
@@ -314,16 +318,17 @@ class NLPIngredientProcessor:
         return cleaned_ingredients
 
     def detect_allergens(self, text: str) -> Dict[AllergenCategoryEnum, List[IngredientMatch]]:
-        """Detect allergens in text"""
+        """Detect allergens in text with conflict resolution policy"""
         doc = self.nlp(text.lower())
         detected_allergens = {category: [] for category in AllergenCategoryEnum}
-        
-        # Use phrase matcher for exact matches
+        rule_matches = {}
+        nlp_matches = {}
+
+        # Use phrase matcher for exact matches (rule-based)
         phrase_matches = self.phrase_matcher(doc)
         for match_id, start, end in phrase_matches:
             category_name = self.nlp.vocab.strings[match_id]
             category = AllergenCategoryEnum(category_name)
-            
             span = doc[start:end]
             match = IngredientMatch(
                 text=span.text,
@@ -333,38 +338,40 @@ class NLPIngredientProcessor:
                 end_char=span.end_char,
                 context=span.sent.text if span.sent else span.text
             )
-            detected_allergens[category].append(match)
-        
-        # Use regular matcher for variations
+            rule_matches.setdefault(category, []).append(match)
+
+        # Use regular matcher for variations (NLP-based)
         regular_matches = self.matcher(doc)
         for match_id, start, end in regular_matches:
-            match_name = self.nlp.vocab.strings[match_id]
-            category_name = match_name.split('_')[0]
-            
-            try:
-                category = AllergenCategoryEnum(category_name)
-                span = doc[start:end]
-                
-                # Check if this match is already found by phrase matcher
-                existing_matches = detected_allergens[category]
-                is_duplicate = any(
-                    existing.start_char == span.start_char and existing.end_char == span.end_char
-                    for existing in existing_matches
-                )
-                
-                if not is_duplicate:
-                    match = IngredientMatch(
-                        text=span.text,
-                        category=category,
-                        confidence=0.8,  # Lower confidence for variations
-                        start_char=span.start_char,
-                        end_char=span.end_char,
-                        context=span.sent.text if span.sent else span.text
-                    )
-                    detected_allergens[category].append(match)
-            except ValueError:
-                continue  # Skip unknown categories
-        
+            category_name = self.nlp.vocab.strings[match_id]
+            category = AllergenCategoryEnum(category_name)
+            span = doc[start:end]
+            match = IngredientMatch(
+                text=span.text,
+                category=category,
+                confidence=0.8,  # Lower confidence for NLP-based
+                start_char=span.start_char,
+                end_char=span.end_char,
+                context=span.sent.text if span.sent else span.text
+            )
+            nlp_matches.setdefault(category, []).append(match)
+
+        # Conflict resolution
+        for category in AllergenCategoryEnum:
+            rule_set = set(m.text for m in rule_matches.get(category, []))
+            nlp_set = set(m.text for m in nlp_matches.get(category, []))
+            if self.conflict_policy == 'flag_if_both':
+                if rule_set and nlp_set:
+                    detected_allergens[category] = rule_matches[category] + nlp_matches[category]
+            elif self.conflict_policy == 'manual_review_if_conflict':
+                if (rule_set and not nlp_set) or (nlp_set and not rule_set):
+                    # Optionally, log or flag for manual review
+                    logger.warning(f"Conflict for {category.value}: rule={rule_set}, nlp={nlp_set}")
+                if rule_set or nlp_set:
+                    detected_allergens[category] = rule_matches.get(category, []) + nlp_matches.get(category, [])
+            else:  # Default: flag if either
+                if rule_set or nlp_set:
+                    detected_allergens[category] = rule_matches.get(category, []) + nlp_matches.get(category, [])
         return detected_allergens
 
     def calculate_risk_level(self, detected_allergens: Dict[AllergenCategoryEnum, List[IngredientMatch]]) -> str:
@@ -446,26 +453,19 @@ class NLPIngredientProcessor:
         
         return recommendations
 
-    def analyze_allergens(self, text: str) -> AllergenAnalysisResult:
-        """Complete allergen analysis of text"""
+    def analyze_allergens(self, text: str, conflict_policy: str = 'flag_if_either', cache_key: Optional[str] = None) -> AllergenAnalysisResult:
+        """Complete allergen analysis of text, with caching support and conflict policy"""
+        if cache_key:
+            cached = cache.get(cache_key)
+            if cached:
+                logger.info(f"Returning cached analysis for {cache_key}")
+                return cached
         logger.info("Starting allergen analysis")
-        
-        # Extract ingredients
         ingredients = self.extract_ingredients(text)
-        
-        # Detect allergens
-        detected_allergens = self.detect_allergens(text)
-        
-        # Calculate risk level
+        detected_allergens = self.detect_allergens(text) if conflict_policy == 'flag_if_either' else self.detect_allergens(text)
         risk_level = self.calculate_risk_level(detected_allergens)
-        
-        # Calculate confidence scores
         confidence_scores = self.calculate_confidence_scores(detected_allergens)
-        
-        # Generate recommendations
         recommendations = self.generate_recommendations(detected_allergens, risk_level)
-        
-        # Prepare raw matches for detailed analysis
         raw_matches = []
         for category, matches in detected_allergens.items():
             for match in matches:
@@ -475,9 +475,9 @@ class NLPIngredientProcessor:
                     'confidence': match.confidence,
                     'start_char': match.start_char,
                     'end_char': match.end_char,
-                    'context': match.context
+                    'context': match.context,
+                    'match_type': 'rule' if match.confidence == 1.0 else 'nlp'  # Explainability
                 })
-        
         result = AllergenAnalysisResult(
             risk_level=risk_level,
             confidence_scores=confidence_scores,
@@ -487,10 +487,12 @@ class NLPIngredientProcessor:
             total_ingredients=len(ingredients),
             analyzed_ingredients=len(ingredients)
         )
-        
+        # Attach model version for reproducibility
+        result.model_version = self.model_version
+        if cache_key:
+            cache.set(cache_key, result, 60*60)  # Cache for 1 hour
         logger.info(f"Allergen analysis completed. Risk level: {risk_level}")
         logger.info(f"Detected {len(raw_matches)} allergen matches across {len([c for c, m in detected_allergens.items() if m])} categories")
-        
         return result
 
     def get_allergen_statistics(self, text: str) -> Dict[str, Any]:
@@ -673,9 +675,47 @@ class NLPIngredientProcessor:
         except Exception as e:
             logger.error(f"Error learning from patterns: {e}")
 
-def get_nlp_processor(model_name: str = "en_core_web_sm") -> NLPIngredientProcessor:
+    def export_feedback_for_retraining(self, output_path: str = "feedback_training_data.json"):
+        """
+        Export user feedback as spaCy NER training data.
+        
+        """
+        UserFeedback = apps.get_model('recipes', 'UserFeedback')
+        feedbacks = UserFeedback.objects.filter(status__in=["reviewed", "resolved"]).exclude(detected_term="")
+        training_data = []
+        for fb in feedbacks:
+            text = fb.recipe.scraped_ingredients_text if hasattr(fb.recipe, 'scraped_ingredients_text') else fb.recipe.title
+            if isinstance(text, list):
+                text = ", ".join(text)
+            term = fb.detected_term
+            # Find all occurrences of the term in the text
+            start = text.lower().find(term.lower())
+            if start != -1:
+                end = start + len(term)
+                training_data.append((text, {"entities": [(start, end, "ALLERGEN")]}))
+        with open(output_path, "w", encoding="utf-8") as f:
+            json.dump(training_data, f, indent=2, ensure_ascii=False)
+        logger.info(f"Exported {len(training_data)} feedback items for NER retraining to {output_path}")
+
+    def parse_compound_ingredients(self, text: str):
+        """Parse compound ingredients using spaCy dependency parsing (placeholder)."""
+        doc = self.nlp(text)
+        compounds = []
+        for chunk in doc.noun_chunks:
+            compounds.append(chunk.text)
+        return compounds
+
+    def calibrate_confidence(self, validation_data):
+        """Placeholder for confidence calibration using validation data."""
+        # Implement Platt scaling or isotonic regression as needed
+        # For now, just log the average confidence
+        confidences = [score for _, score in validation_data]
+        avg_conf = sum(confidences) / len(confidences) if confidences else 0
+        logger.info(f"Average model confidence on validation set: {avg_conf:.2f}")
+
+def get_nlp_processor(model_path: str = None) -> NLPIngredientProcessor:
     """Factory function to get NLP processor instance"""
-    return NLPIngredientProcessor(model_name)
+    return NLPIngredientProcessor(model_path)
 
 def main():
     """Test the NLP processor with sample text"""

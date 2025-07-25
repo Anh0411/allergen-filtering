@@ -5,8 +5,6 @@ Analyze all Food.com recipes in the database using the NLP pipeline and save res
 
 import os
 import sys
-import django
-from django.utils import timezone
 
 # Ensure project root is in sys.path
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -14,7 +12,6 @@ sys.path.insert(0, PROJECT_ROOT)
 
 # Setup Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'allergen_filtering.settings')
-django.setup()
 
 from recipes.models import Recipe, AllergenAnalysisResult
 from allergen_filtering.nlp_processor import get_nlp_processor

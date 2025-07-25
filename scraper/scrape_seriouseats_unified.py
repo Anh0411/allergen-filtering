@@ -11,7 +11,6 @@ Combines the best features from all previous scrapers:
 
 import os
 import sys
-import django
 import logging
 from bs4 import BeautifulSoup
 from playwright.sync_api import sync_playwright
@@ -22,13 +21,6 @@ from urllib.parse import urlparse, urljoin
 import argparse
 import requests
 from xml.etree import ElementTree
-
-# Setup Django
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'allergen_filtering.settings')
-django.setup()
-
-from recipes.models import Recipe
 
 # Setup logging
 logging.basicConfig(

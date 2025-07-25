@@ -8,6 +8,9 @@ import re
 from typing import Dict, List, Set, Tuple
 from dataclasses import dataclass
 from pathlib import Path
+import spacy
+from spacy.training.example import Example
+import random
 
 
 @dataclass
@@ -592,4 +595,36 @@ if __name__ == "__main__":
     
     # Export to JSON
     allergen_dict.export_to_json("allergen_dictionary.json")
-    print("\nAllergen dictionary exported to allergen_dictionary.json") 
+    print("\nAllergen dictionary exported to allergen_dictionary.json")
+
+# Load your exported feedback/annotation data
+with open("feedback_training_data.json") as f:
+    TRAIN_DATA = json.load(f)
+
+# Create blank English model
+nlp = spacy.blank("en")
+ner = nlp.add_pipe("ner")
+
+# Add labels from your data
+labels = set()
+for text, ann in TRAIN_DATA:
+    for start, end, label in ann["entities"]:
+        labels.add(label)
+for label in labels:
+    ner.add_label(label)
+
+# Training loop
+optimizer = nlp.begin_training()
+for i in range(20):
+    random.shuffle(TRAIN_DATA)
+    losses = {}
+    for text, ann in TRAIN_DATA:
+        example = Example.from_dict(nlp.make_doc(text), ann)
+        nlp.update([example], drop=0.5, losses=losses)
+    print(f"Iteration {i+1}, Losses: {losses}")
+
+# Save the trained model with a version
+model_version = "v1.1"
+output_dir = f"allergen_ner_model_{model_version}"
+nlp.to_disk(output_dir)
+print(f"Model saved to {output_dir}") 

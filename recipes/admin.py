@@ -1,5 +1,7 @@
 from django.contrib import admin
 from .models import Allergen, Ingredient, Recipe, RecipeIngredientItem, AllergenCategory, AllergenAnalysisResult, AllergenSynonym, AllergenDetectionLog, AllergenDictionaryVersion, Annotation, RecipeFeedback
+from scraper.allergen_analysis_manager import run_batch_analysis
+from scraper.nlp_ingredient_processor import NLPIngredientProcessor
 
 @admin.register(AllergenCategory)
 class AllergenCategoryAdmin(admin.ModelAdmin):
@@ -16,6 +18,38 @@ class AllergenSynonymAdmin(admin.ModelAdmin):
     search_fields = ['term', 'allergen_category__name']
     ordering = ['allergen_category', 'term_type', 'term']
 
+    actions = [
+        'activate_synonyms',
+        'deactivate_synonyms',
+        'set_term_type_manual',
+        'set_term_type_auto',
+    ]
+
+    def activate_synonyms(self, request, queryset):
+        updated = queryset.update(is_active=True)
+        self.message_user(request, f"{updated} synonym(s) marked as active.")
+    activate_synonyms.short_description = "Mark selected synonyms as active"
+
+    def deactivate_synonyms(self, request, queryset):
+        updated = queryset.update(is_active=False)
+        self.message_user(request, f"{updated} synonym(s) marked as inactive.")
+    deactivate_synonyms.short_description = "Mark selected synonyms as inactive"
+
+    def set_term_type_manual(self, request, queryset):
+        updated = queryset.update(term_type='manual')
+        self.message_user(request, f"{updated} synonym(s) set to term_type 'manual'.")
+    set_term_type_manual.short_description = "Set term_type to 'manual' for selected"
+
+    def set_term_type_auto(self, request, queryset):
+        updated = queryset.update(term_type='auto')
+        self.message_user(request, f"{updated} synonym(s) set to term_type 'auto'.")
+    set_term_type_auto.short_description = "Set term_type to 'auto' for selected"
+
+@admin.action(description='Re-analyze selected recipes for allergens (async)')
+def reanalyze_recipes(modeladmin, request, queryset):
+    recipe_ids = list(queryset.values_list('id', flat=True))
+    run_batch_analysis.delay(recipe_ids)
+
 @admin.register(Recipe)
 class RecipeAdmin(admin.ModelAdmin):
     list_display = ['title', 'risk_level', 'nlp_confidence_score', 'allergen_count', 'annotators', 'created_at']
@@ -23,6 +57,7 @@ class RecipeAdmin(admin.ModelAdmin):
     search_fields = ['title', 'scraped_ingredients_text', 'original_url']
     readonly_fields = ['nlp_analysis_date', 'last_analyzed', 'created_at', 'updated_at']
     filter_horizontal = ['allergen_categories']
+    actions = [reanalyze_recipes]
     
     fieldsets = (
         ('Basic Information', {
@@ -51,7 +86,7 @@ class RecipeAdmin(admin.ModelAdmin):
 
 @admin.register(AllergenAnalysisResult)
 class AllergenAnalysisResultAdmin(admin.ModelAdmin):
-    list_display = ['recipe', 'risk_level', 'analysis_date', 'total_ingredients', 'processing_time']
+    list_display = ['recipe', 'risk_level', 'analysis_date', 'total_ingredients', 'processing_time', 'get_model_version']
     list_filter = ['risk_level', 'analysis_date']
     search_fields = ['recipe__title']
     readonly_fields = ['analysis_date', 'processing_time']
@@ -68,6 +103,10 @@ class AllergenAnalysisResultAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+
+    def get_model_version(self, obj):
+        return getattr(obj, 'model_version', 'unknown')
+    get_model_version.short_description = 'Model Version'
 
 @admin.register(AllergenDetectionLog)
 class AllergenDetectionLogAdmin(admin.ModelAdmin):
@@ -160,6 +199,12 @@ class AnnotationAdmin(admin.ModelAdmin):
     has_notes.boolean = True
     has_notes.short_description = 'Has Notes'
 
+@admin.action(description='Export feedback for NER retraining')
+def export_feedback_for_ner(modeladmin, request, queryset):
+    processor = NLPIngredientProcessor()
+    processor.export_feedback_for_retraining()
+    modeladmin.message_user(request, "Feedback exported for NER retraining.")
+
 @admin.register(RecipeFeedback)
 class RecipeFeedbackAdmin(admin.ModelAdmin):
     list_display = ['recipe', 'user', 'created_at', 'is_reviewed', 'reviewed_by', 'reviewed_at']
@@ -167,6 +212,7 @@ class RecipeFeedbackAdmin(admin.ModelAdmin):
     search_fields = ['recipe__title', 'user__username', 'notes']
     readonly_fields = ['created_at', 'feedback_data']
     ordering = ['-created_at']
+    actions = [export_feedback_for_ner]
     
     fieldsets = (
         ('Recipe Feedback', {
