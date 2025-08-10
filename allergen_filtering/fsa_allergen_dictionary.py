@@ -40,7 +40,7 @@ class FSAAllergenDictionary:
                 name="Celery",
                 main_ingredients=["celery", "celery root", "celeriac", "celery stalk", "celery leaves"],
                 synonyms=[
-                    "celery seed", "celery salt", "celery powder", "celery extract", "celery oil", "tahini",
+                    "celery seed", "celery salt", "celery powder", "celery extract", "celery oil",
                     "celery juice", "celery puree", "celery paste", "celery concentrate", "celery protein",
                     "celery fiber", "celery flour", "celery meal", "celery seed oil"
                 ],

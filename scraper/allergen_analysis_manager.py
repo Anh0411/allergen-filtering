@@ -27,6 +27,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'allergen_filtering.settings')
 
 from recipes.models import Recipe, AllergenAnalysisResult
+from django.db import models
+import django
 
 class AnalysisStatus(Enum):
     """Enum for analysis status"""
@@ -171,7 +173,7 @@ class AllergenDatabaseManager:
                     'recommendations': analysis_result.recommendations,
                     'total_ingredients': analysis_result.total_ingredients,
                     'analyzed_ingredients': analysis_result.analyzed_ingredients,
-                    'processing_time': analysis_result.processing_time
+                    'processing_time': analysis_result.processing_time,
                 }
             )
             
@@ -337,6 +339,8 @@ class AllergenAnalysisManager:
             recipe_data_list.append(recipe_data)
         
         return self.analyze_recipe_batch(recipe_data_list)
+
+    # Removed reanalyze_on_version_bump to revert migration-linked behavior
 
     def analyze_recipes_in_batches(self, recipe_ids: Optional[List[int]] = None) -> Tuple[int, int]:
         """Analyze recipes in configurable batches"""

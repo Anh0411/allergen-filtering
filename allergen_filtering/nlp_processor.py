@@ -10,6 +10,7 @@ import nltk
 from typing import Dict, List, Tuple, Set, Optional
 from dataclasses import dataclass
 from collections import defaultdict
+from enum import Enum
 import logging
 
 from allergen_filtering.allergen_dictionary import AllergenDictionary, get_allergen_dictionary
@@ -39,7 +40,17 @@ class AllergenAnalysis:
     confidence_scores: Dict[str, float]
     risk_level: str  # 'low', 'medium', 'high', 'critical'
     recommendations: List[str]
-    raw_matches: Dict[str, List[str]]
+    raw_matches: Dict[str, List[str]] | Dict[str, Dict[str, List[str]]]
+    model_version: str = ""
+    dictionary_version: str = ""
+
+
+class ConflictPolicy(Enum):
+    FLAG_IF_EITHER = "flag_if_either"
+    REQUIRE_BOTH = "require_both"
+    PREFER_RULE = "prefer_rule"
+    PREFER_MODEL = "prefer_model"
+    WEIGHTED_FUSION = "weighted_fusion"
 
 
 class NLPProcessor:
@@ -48,7 +59,7 @@ class NLPProcessor:
     Integrates with allergen dictionary and uses spaCy for text processing
     """
     
-    def __init__(self, allergen_dict: Optional[object] = None, spacy_model: str = "en_core_web_sm"):
+    def __init__(self, allergen_dict: Optional[object] = None, spacy_model: str = "en_core_web_sm", model_version: str = "v1"):
         """
         Initialize the NLP processor
         
@@ -70,6 +81,12 @@ class NLPProcessor:
             import subprocess
             subprocess.run([sys.executable, "-m", "spacy", "download", spacy_model])
             self.nlp = spacy.load(spacy_model)
+
+        # Version metadata
+        self.model_name = spacy_model
+        self.model_version = model_version
+        # Best-effort dictionary version
+        self.dictionary_version = getattr(self.allergen_dict, "version", self.allergen_dict.__class__.__name__)
         
         # Download required NLTK data
         try:
@@ -95,6 +112,13 @@ class NLPProcessor:
             'main_ingredient': 1.0,
             'synonym': 0.8
         }
+
+        # Exceptions and negation helpers
+        self.false_friend_terms_by_category = {
+            'tree_nuts': {"nutmeg"},
+        }
+        self.negation_lemmas = {"no", "not", "without", "free", "omit", "avoid", "exclude"}
+        self.free_pattern = re.compile(r"\b([a-zA-Z\-]+)\s*[- ]?free\b", re.IGNORECASE)
     
     def _build_ingredient_patterns(self) -> Dict[str, re.Pattern]:
         """Build regex patterns for ingredient detection"""
@@ -215,7 +239,7 @@ class NLPProcessor:
         text_lower = text.lower()
         return any(indicator in text_lower for indicator in food_indicators)
     
-    def analyze_allergens(self, text: str) -> AllergenAnalysis:
+    def analyze_allergens(self, text: str, conflict_policy: str = ConflictPolicy.FLAG_IF_EITHER.value, weighted_threshold: float = 0.7) -> AllergenAnalysis:
         """
         Perform comprehensive allergen analysis of text
         
@@ -225,49 +249,52 @@ class NLPProcessor:
         Returns:
             AllergenAnalysis object with detailed results
         """
-        # Extract ingredients
-        ingredients = self.extract_ingredients(text)
-        
-        # Detect allergens using the dictionary
-        raw_matches = self.allergen_dict.detect_allergens(text)
-        
-        # Create detailed matches with context
-        detected_allergens = defaultdict(list)
-        confidence_scores = defaultdict(float)
-        
-        # Process each detected allergen category
-        for category, terms in raw_matches.items():
-            category_matches = []
-            category_confidence = 0.0
-            
-            for term in terms:
-                # Find all occurrences of the term in the text
-                term_positions = self._find_term_positions(text, term)
-                
-                for start, end in term_positions:
-                    # Get context around the term
-                    context_start = max(0, start - 50)
-                    context_end = min(len(text), end + 50)
-                    context = text[context_start:context_end]
-                    
-                    # Determine match type and confidence
-                    match_type, confidence = self._determine_match_confidence(term, category, context)
-                    
-                    # Create ingredient match
-                    match = IngredientMatch(
-                        text=term,
-                        allergen_category=category,
-                        confidence=confidence,
-                        position=(start, end),
-                        context=context,
-                        match_type=match_type
-                    )
-                    
-                    category_matches.append(match)
-                    category_confidence = max(category_confidence, confidence)
-            
-            detected_allergens[category] = category_matches
-            confidence_scores[category] = category_confidence
+        # Prepare doc once
+        doc = self.nlp(text)
+
+        # Rule/dictionary detection
+        rule_raw_matches = self.allergen_dict.detect_allergens(text)
+        # Placeholder for model-based detection
+        model_raw_matches: Dict[str, List[str]] = {}
+
+        def process_matches(source_matches: Dict[str, List[str]]) -> Dict[str, List[IngredientMatch]]:
+            processed: Dict[str, List[IngredientMatch]] = defaultdict(list)
+            for category, terms in source_matches.items():
+                for term in terms:
+                    positions = self._find_term_positions(text, term)
+                    for start, end in positions:
+                        span = doc.char_span(start, end, alignment_mode="expand")
+                        context_start = max(0, start - 50)
+                        context_end = min(len(text), end + 50)
+                        context = text[context_start:context_end]
+
+                        # Exceptions (false friends)
+                        if category in self.false_friend_terms_by_category and term.lower() in self.false_friend_terms_by_category[category]:
+                            continue
+                        # Negation
+                        if span is not None and self._is_negated(span, doc, text):
+                            continue
+
+                        match_type, confidence = self._determine_match_confidence(term, category, context)
+                        processed[category].append(IngredientMatch(
+                            text=term,
+                            allergen_category=category,
+                            confidence=confidence,
+                            position=(start, end),
+                            context=context,
+                            match_type=match_type
+                        ))
+            return processed
+
+        rule_matches = process_matches(rule_raw_matches)
+        model_matches = process_matches(model_raw_matches)
+
+        detected_allergens = self._resolve_conflicts(rule_matches, model_matches, conflict_policy, weighted_threshold)
+
+        # Confidence aggregation
+        confidence_scores: Dict[str, float] = {}
+        for category, matches in detected_allergens.items():
+            confidence_scores[category] = max((m.confidence for m in matches), default=0.0)
         
         # Determine overall risk level
         risk_level = self._determine_risk_level(detected_allergens, confidence_scores)
@@ -281,8 +308,39 @@ class NLPProcessor:
             confidence_scores=dict(confidence_scores),
             risk_level=risk_level,
             recommendations=recommendations,
-            raw_matches=raw_matches
+            raw_matches={"rule": rule_raw_matches, "model": model_raw_matches},
+            model_version=self.model_version,
+            dictionary_version=str(self.dictionary_version),
         )
+
+    def _resolve_conflicts(
+        self,
+        rule_matches: Dict[str, List[IngredientMatch]],
+        model_matches: Dict[str, List[IngredientMatch]],
+        conflict_policy: str,
+        weighted_threshold: float,
+    ) -> Dict[str, List[IngredientMatch]]:
+        policy = ConflictPolicy(conflict_policy) if not isinstance(conflict_policy, ConflictPolicy) else conflict_policy
+        categories = set(rule_matches.keys()) | set(model_matches.keys())
+        merged: Dict[str, List[IngredientMatch]] = {}
+        for category in categories:
+            r = rule_matches.get(category, [])
+            m = model_matches.get(category, [])
+            if policy == ConflictPolicy.FLAG_IF_EITHER:
+                combined = r + [mm for mm in m if mm not in r]
+            elif policy == ConflictPolicy.REQUIRE_BOTH:
+                r_terms = {x.text.lower() for x in r}
+                combined = [x for x in m if x.text.lower() in r_terms]
+            elif policy == ConflictPolicy.PREFER_RULE:
+                combined = r if r else m
+            elif policy == ConflictPolicy.PREFER_MODEL:
+                combined = m if m else r
+            else:
+                fused = r + m
+                combined = [x for x in fused if x.confidence >= weighted_threshold]
+            if combined:
+                merged[category] = combined
+        return merged
     
     def _find_term_positions(self, text: str, term: str) -> List[Tuple[int, int]]:
         """Find all positions of a term in text"""
@@ -366,6 +424,27 @@ class NLPProcessor:
             recommendations.append(f"Contains {allergen_info.name}: {', '.join(match.text for match in matches)}")
         
         return recommendations
+
+    def _is_negated(self, span, doc, full_text: str) -> bool:
+        """Return True if span is negated or part of an X-free context."""
+        # Token window around span
+        window_start = max(span.start - 3, 0)
+        window_end = min(span.end + 3, len(doc))
+        for tok in doc[window_start:window_end]:
+            if tok.lemma_.lower() in self.negation_lemmas:
+                return True
+        # Check for '-free' patterns nearby
+        context_text = full_text[max(0, span.start_char - 15): span.end_char + 15].lower()
+        if "free" in context_text:
+            return True
+        # Simple dependency-based negation
+        try:
+            for tok in span.root.subtree:
+                if tok.dep_ == "neg":
+                    return True
+        except Exception:
+            pass
+        return False
     
     def get_ingredient_analysis(self, text: str) -> Dict:
         """
@@ -392,9 +471,9 @@ class NLPProcessor:
 
 
 # Convenience function to get a configured NLP processor
-def get_nlp_processor(allergen_dict: Optional[object] = None) -> NLPProcessor:
+def get_nlp_processor(allergen_dict: Optional[object] = None, spacy_model: str = "en_core_web_sm", model_version: str = "v1") -> NLPProcessor:
     """Get a configured NLP processor instance (uses FSA dictionary by default)"""
-    return NLPProcessor(allergen_dict)
+    return NLPProcessor(allergen_dict=allergen_dict, spacy_model=spacy_model, model_version=model_version)
 
 
 if __name__ == "__main__":

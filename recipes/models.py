@@ -203,7 +203,6 @@ class AllergenDictionaryVersion(models.Model):
     def __str__(self):
         return f"Allergen Dictionary v{self.version}"
 
-
 class AllergenAnalysisResult(models.Model):
     """Store detailed allergen analysis results for recipes"""
     recipe = models.OneToOneField(Recipe, on_delete=models.CASCADE, related_name='analysis_result')
