@@ -6,7 +6,7 @@ from rest_framework import serializers
 from django.contrib.auth.models import User
 from .models import (
     Recipe, AllergenAnalysisResult, AllergenCategory, 
-    AllergenSynonym, AllergenDetectionLog
+    AllergenSynonym, AllergenDetectionLog, RecipeIngredientItem
 )
 
 
@@ -61,9 +61,17 @@ class AllergenAnalysisResultSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'analysis_date']
 
 
+class RecipeIngredientItemSerializer(serializers.ModelSerializer):
+    """Serializer for RecipeIngredientItem model"""
+    class Meta:
+        model = RecipeIngredientItem
+        fields = ['id', 'quantity', 'unit', 'name', 'detected_allergens']
+
+
 class RecipeSerializer(serializers.ModelSerializer):
     """Serializer for Recipe model"""
     analysis_result = AllergenAnalysisResultSerializer(read_only=True)
+    ingredient_items = RecipeIngredientItemSerializer(many=True, read_only=True)
     scraped_ingredients_text = serializers.ListField(
         child=serializers.CharField(),
         read_only=True
@@ -79,7 +87,7 @@ class RecipeSerializer(serializers.ModelSerializer):
             'id', 'title', 'scraped_ingredients_text', 'instructions', 
             'times', 'image_url', 'original_url', 'risk_level', 
             'nlp_confidence_score', 'nlp_analysis_date', 'last_analyzed',
-            'analysis_result'
+            'analysis_result', 'ingredient_items'
         ]
         read_only_fields = ['id', 'last_analyzed']
 

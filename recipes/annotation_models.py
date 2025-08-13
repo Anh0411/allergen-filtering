@@ -285,18 +285,5 @@ class AnnotationExport(models.Model):
         return f"{self.project.name} - {self.format} export - {self.created_at.date()}"
 
 
-class AllergenCategory(models.Model):
-    name = models.CharField(max_length=50, unique=True)
-
-
-class Recipe(models.Model):
-    title = models.CharField(max_length=255)
-    # ... other fields ...
-
-
-class Annotation(models.Model):
-    recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE)
-    annotator = models.ForeignKey(User, on_delete=models.CASCADE)
-    allergens = models.ManyToManyField(AllergenCategory)
-    notes = models.TextField(blank=True)
-    created_at = models.DateTimeField(auto_now_add=True) 
+# Removed duplicate model definitions to avoid conflicts
+# Use models from recipes.models instead 

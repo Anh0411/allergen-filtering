@@ -290,6 +290,9 @@ class NLPProcessor:
         model_matches = process_matches(model_raw_matches)
 
         detected_allergens = self._resolve_conflicts(rule_matches, model_matches, conflict_policy, weighted_threshold)
+        
+        # Consolidate shellfish categories into unified "shellfish" category
+        detected_allergens = self._consolidate_shellfish_categories(detected_allergens)
 
         # Confidence aggregation
         confidence_scores: Dict[str, float] = {}
@@ -342,6 +345,25 @@ class NLPProcessor:
                 merged[category] = combined
         return merged
     
+    def _consolidate_shellfish_categories(self, detected_allergens: Dict[str, List[IngredientMatch]]) -> Dict[str, List[IngredientMatch]]:
+        """
+        Consolidate individual shellfish categories (crustaceans, molluscs) into unified "shellfish" category
+        """
+        shellfish_categories = {"crustaceans", "molluscs"}
+        consolidated = {}
+        
+        for category, matches in detected_allergens.items():
+            if category in shellfish_categories:
+                # Consolidate into shellfish category
+                if "shellfish" not in consolidated:
+                    consolidated["shellfish"] = []
+                consolidated["shellfish"].extend(matches)
+            else:
+                # Keep other categories as-is
+                consolidated[category] = matches
+        
+        return consolidated
+    
     def _find_term_positions(self, text: str, term: str) -> List[Tuple[int, int]]:
         """Find all positions of a term in text"""
         positions = []
@@ -361,6 +383,10 @@ class NLPProcessor:
     def _determine_match_confidence(self, term: str, category: str, context: str) -> Tuple[str, float]:
         """Determine the type and confidence of a match"""
         allergen_info = self.allergen_dict.get_allergen_info(category)
+        
+        # If no allergen info available, return default confidence
+        if not allergen_info:
+            return 'exact_match', self.confidence_weights['exact_match']
         
         # Check if it's a main ingredient
         if term.lower() in [ing.lower() for ing in allergen_info.main_ingredients]:
@@ -421,7 +447,14 @@ class NLPProcessor:
         # Add specific allergen recommendations
         for category, matches in detected_allergens.items():
             allergen_info = self.allergen_dict.get_allergen_info(category)
-            recommendations.append(f"Contains {allergen_info.name}: {', '.join(match.text for match in matches)}")
+            if allergen_info:
+                recommendations.append(f"Contains {allergen_info.name}: {', '.join(match.text for match in matches)}")
+            else:
+                # Handle consolidated categories that might not have direct allergen info
+                if category == "shellfish":
+                    recommendations.append(f"Contains Shellfish: {', '.join(match.text for match in matches)}")
+                else:
+                    recommendations.append(f"Contains {category.title()}: {', '.join(match.text for match in matches)}")
         
         return recommendations
 

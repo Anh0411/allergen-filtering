@@ -99,9 +99,23 @@ class AllergenAnalysisProcessor:
             )
         
         try:
+            # Parse ingredients text if it's a string representation of a list
+            ingredients = recipe_data['scraped_ingredients_text']
+            if isinstance(ingredients, str):
+                try:
+                    import ast
+                    ingredients = ast.literal_eval(ingredients)
+                except (ValueError, SyntaxError):
+                    # If parsing fails, treat as single string
+                    ingredients = [ingredients]
+            
+            # Ensure ingredients is a list
+            if not isinstance(ingredients, list):
+                ingredients = [ingredients] if ingredients else []
+            
             # Combine ingredients and instructions for analysis
             analysis_text = f"""
-            Ingredients: {', '.join(recipe_data['scraped_ingredients_text'])}
+            Ingredients: {', '.join(ingredients)}
             
             Instructions: {' '.join(recipe_data['instructions'])}
             """

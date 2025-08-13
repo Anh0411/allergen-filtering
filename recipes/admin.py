@@ -1,7 +1,5 @@
 from django.contrib import admin
 from .models import Allergen, Ingredient, Recipe, RecipeIngredientItem, AllergenCategory, AllergenAnalysisResult, AllergenSynonym, AllergenDetectionLog, AllergenDictionaryVersion, Annotation, RecipeFeedback
-from scraper.allergen_analysis_manager import run_batch_analysis
-from scraper.nlp_ingredient_processor import NLPIngredientProcessor
 
 @admin.register(AllergenCategory)
 class AllergenCategoryAdmin(admin.ModelAdmin):
@@ -45,10 +43,7 @@ class AllergenSynonymAdmin(admin.ModelAdmin):
         self.message_user(request, f"{updated} synonym(s) set to term_type 'auto'.")
     set_term_type_auto.short_description = "Set term_type to 'auto' for selected"
 
-@admin.action(description='Re-analyze selected recipes for allergens (async)')
-def reanalyze_recipes(modeladmin, request, queryset):
-    recipe_ids = list(queryset.values_list('id', flat=True))
-    run_batch_analysis.delay(recipe_ids)
+
 
 @admin.register(Recipe)
 class RecipeAdmin(admin.ModelAdmin):
@@ -57,7 +52,6 @@ class RecipeAdmin(admin.ModelAdmin):
     search_fields = ['title', 'scraped_ingredients_text', 'original_url']
     readonly_fields = ['nlp_analysis_date', 'last_analyzed', 'created_at', 'updated_at']
     filter_horizontal = ['allergen_categories']
-    actions = [reanalyze_recipes]
     
     fieldsets = (
         ('Basic Information', {

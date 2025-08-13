@@ -63,7 +63,7 @@ class AllergenDictionary:
                 name="Gluten",
                 main_ingredients=[
                     "wheat", "rye", "barley", "oats", "wheat flour", "rye flour", "barley flour", "oat flour",
-                    "wheat gluten", "rye gluten", "barley gluten", "oat protein"
+                    "wheat gluten", "rye gluten", "barley gluten", "oat protein", "breadcrumbs", "bread crumbs"
                 ],
                 synonyms=[
                     "wheat flour", "rye flour", "barley flour", "oat flour", "wheat protein", "rye protein",
@@ -80,7 +80,8 @@ class AllergenDictionary:
                     "barley protein concentrate", "oat protein concentrate", "wheat protein hydrolysate", "rye protein hydrolysate",
                     "barley protein hydrolysate", "oat protein hydrolysate", "vital wheat gluten", "vital rye gluten",
                     "vital barley gluten", "vital oat gluten", "seitan", "wheat protein derivative", "rye protein derivative",
-                    "barley protein derivative", "oat protein derivative", "spelt", "kamut", "triticale", "einkorn", "emmer"
+                    "barley protein derivative", "oat protein derivative", "spelt", "kamut", "triticale", "einkorn", "emmer",
+                    "breadcrumbs", "bread crumbs"
                 ],
                 scientific_names=[
                     "triticum aestivum", "triticum durum", "secale cereale", "hordeum vulgare", "avena sativa",
@@ -99,7 +100,7 @@ class AllergenDictionary:
                     "whole rye bread", "barley bran", "barley flour", "barley germ", "barley gluten", "barley meal", "barley protein",
                     "barley protein concentrate", "barley protein isolate", "barley starch", "whole barley flour", "whole barley bread",
                     "oat bran", "oat flour", "oat germ", "oat gluten", "oat meal", "oat protein", "oat protein concentrate",
-                    "oat protein isolate", "oat starch", "whole oat flour", "whole oat bread"
+                    "oat protein isolate", "oat starch", "whole oat flour", "whole oat bread", "breadcrumbs", "bread crumbs"
                 ],
                 description="Cereals containing gluten (wheat, rye, barley, oats) and their derivatives"
             ),
@@ -334,7 +335,7 @@ class AllergenDictionary:
             
             "peanuts": AllergenCategory(
                 name="Peanuts",
-                main_ingredients=["peanut", "peanuts", "peanut butter", "peanut oil"],
+                main_ingredients=["peanut", "peanuts", "peanut butter", "peanut oil", "groundnut", "ground nuts"],
                 synonyms=[
                     "arachis hypogaea", "ground nut", "groundnut", "monkey nut", "goober pea",
                     "peanut flour", "peanut protein", "peanut meal", "peanut paste", "peanut butter",
@@ -456,6 +457,42 @@ class AllergenDictionary:
                     "pine nut", "pistachio", "praline", "shea nut", "walnut"
                 ],
                 description="Tree nuts (almonds, hazelnuts, walnuts, brazil nuts, cashews, pecans, pistachios, macadamia nuts) and their derivatives"
+            ),
+            
+            "shellfish": AllergenCategory(
+                name="Shellfish",
+                main_ingredients=[
+                    "shrimp", "prawn", "crab", "lobster", "crayfish", "crawfish", "clam", "mussel", 
+                    "oyster", "scallop", "abalone", "cockle", "conch", "limpet", "periwinkle", 
+                    "sea urchin", "whelk", "snail", "krill", "barnacle"
+                ],
+                synonyms=[
+                    "shrimp", "prawn", "crab", "lobster", "crayfish", "crawfish", "clam", "mussel", 
+                    "oyster", "scallop", "abalone", "cockle", "conch", "limpet", "periwinkle", 
+                    "sea urchin", "whelk", "snail", "krill", "barnacle", "shellfish", "seafood",
+                    "shrimp protein", "prawn protein", "crab protein", "lobster protein", "crayfish protein",
+                    "crawfish protein", "clam protein", "mussel protein", "oyster protein", "scallop protein",
+                    "abalone protein", "cockle protein", "conch protein", "limpet protein", "periwinkle protein",
+                    "sea urchin protein", "whelk protein", "snail protein", "krill protein", "barnacle protein"
+                ],
+                scientific_names=[
+                    "crustacean protein", "mollusk protein", "shellfish protein", "shellfish protein isolate",
+                    "shellfish protein concentrate", "shellfish protein hydrolysate", "shellfish collagen", 
+                    "shellfish gelatin", "shellfish oil"
+                ],
+                hidden_sources=[
+                    "shrimp", "prawn", "crab", "lobster", "crayfish", "crawfish", "clam", "mussel", 
+                    "oyster", "scallop", "abalone", "cockle", "conch", "limpet", "periwinkle", 
+                    "sea urchin", "whelk", "snail", "krill", "barnacle", "shrimp protein", "prawn protein",
+                    "crab protein", "lobster protein", "crayfish protein", "crawfish protein", "clam protein",
+                    "mussel protein", "oyster protein", "scallop protein", "abalone protein", "cockle protein",
+                    "conch protein", "limpet protein", "periwinkle protein", "sea urchin protein", "whelk protein",
+                    "snail protein", "krill protein", "barnacle protein", "shrimp oil", "prawn oil", "crab oil",
+                    "lobster oil", "crayfish oil", "crawfish oil", "clam oil", "mussel oil", "oyster oil",
+                    "scallop oil", "abalone oil", "cockle oil", "conch oil", "limpet oil", "periwinkle oil",
+                    "sea urchin oil", "whelk oil", "snail oil", "krill oil", "barnacle oil"
+                ],
+                description="Shellfish including crustaceans (shrimp, crab, lobster) and molluscs (clams, mussels, oysters)"
             )
         }
     

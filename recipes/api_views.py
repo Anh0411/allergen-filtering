@@ -28,7 +28,6 @@ from .serializers import (
     HealthCheckSerializer
 )
 from .filters import RecipeFilter
-from scraper.allergen_analysis_manager import AllergenAnalysisManager
 
 logger = logging.getLogger(__name__)
 
@@ -259,42 +258,7 @@ class AllergenAnalysisViewSet(viewsets.ReadOnlyModelViewSet):
     ordering_fields = ['analysis_date', 'processing_time', 'risk_level']
     ordering = ['-analysis_date']
 
-    @swagger_auto_schema(
-        operation_description="Trigger bulk allergen analysis for recipes",
-        request_body=RecipeBulkAnalysisSerializer,
-        responses={200: "Analysis started successfully"}
-    )
-    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
-    def bulk_analyze(self, request):
-        """Trigger bulk allergen analysis"""
-        serializer = RecipeBulkAnalysisSerializer(data=request.data)
-        if serializer.is_valid():
-            data = serializer.validated_data
-            
-            try:
-                # Initialize analysis manager
-                manager = AllergenAnalysisManager()
-                
-                # Start analysis
-                successful, failed = manager.analyze_existing_recipes(data['recipe_ids'])
-                
-                logger.info(f"Bulk analysis completed: {successful} successful, {failed} failed")
-                
-                return Response({
-                    'message': 'Bulk analysis started successfully',
-                    'recipes_requested': len(data['recipe_ids']),
-                    'successful_analyses': successful,
-                    'failed_analyses': failed
-                })
-                
-            except Exception as e:
-                logger.error(f"Error in bulk analysis: {e}")
-                return Response(
-                    {'error': 'Failed to start bulk analysis'},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
-        
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 class AllergenCategoryViewSet(viewsets.ReadOnlyModelViewSet):

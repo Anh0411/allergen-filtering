@@ -3,7 +3,6 @@ from playwright.sync_api import sync_playwright
 from bs4 import BeautifulSoup
 import os
 import sys
-import django
 import time
 import argparse
 import logging
@@ -24,7 +23,6 @@ logger = logging.getLogger(__name__)
 # Setup Django
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'allergen_filtering.settings')
-django.setup()
 
 from recipes.models import Recipe
 

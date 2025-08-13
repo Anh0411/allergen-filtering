@@ -1,128 +1,207 @@
-Here's a focused and detailed step-by-step guide specifically for Phase 3 (Technical Design and Architecture), Phase 4 (Development), and Phase 5 (Testing and Validation) to clearly guide the completion of your Web-Based Allergen Recipe Filter Tool:
+Introduction
+Food allergies are a serious food safety issue that is impacting both public health systems and individual well-being, and they are a growing global public health concern [1]. According to current estimates, food allergies affect 8% of children and 3% to 10% of adults, with prevalence rates increasing yearly. Adverse reactions from these allergies can range in intensity from minor discomfort to possibly lethal anaphylaxis [2]. It can be difficult for people with food allergies to find restaurants that can meet their dietary needs while they are dining out. Because of this, cooking at home is usually the preferred option, which raises the need for trustworthy and easily available allergen information, especially in internet recipes. For the safety of those who must avoid certain ingredients, recipes must be accurately labeled with allergens. Unfortunately, inaccurate and unstructured allergy information is a common problem with online recipe data.
+The focus of this research proposal is to investigate web-scraping techniques for gathering information about allergens from recipe websites. In accordance with EU rules and other relevant standards, the goal is to provide a user-friendly web-based application that helps users to search and filter recipes based on the 14 primary allergy groups [3], offering them a safer way to explore new meals that fits their needs. This tool aims not only to improve the lives of those managing food allergies but also to provide a model that could be applied in other areas where unstructured data is a challenge. The sections that follow explain the project in detail, review relevant literature, describe the research design and methods, outline resources and challenges and discuss the ethical and legal considerations involved.
 
-PHASE 3: TECHNICAL DESIGN AND ARCHITECTURE
+Project Description
+The project is motivated by the challenges faced by people with food allergies when trying to find safe recipes online. The info about allergens, like nuts or dairy, isn’t neat. It’s often stuck in ingredient lists, written in confusing ways, or not even there. When folks use basic searches, like typing “nut-free,” they don’t always get the full picture. That means they might grab a recipe thinking it’s safe, only to find out too late it’s got something they can’t handle.
+To address this gap, this project proposes a web-based tool that gathers and analyzes recipe data from multiple culinary websites. First, it uses set rules to catch obvious allergen labels, like “dairy-free.” Then, it digs deeper with language tools to scan ingredient lists for sneaky allergens that aren’t labeled clearly. Combining these should make it way better at finding what’s safe to eat.
+This tool could change things. For individuals with food allergies, it’s a trustworthy way to pick recipes without stressing out or risking a reaction. This is particularly significant given the emotional and physical burden of managing dietary restrictions, as highlighted in a study by CDC [4]
 
-3.1 System Architecture Design
+Besides individual benefits, the project enhances the accessibility and usability of online culinary content by organizing and labeling recipes based on allergen information. This improvement is able to serve a broader audience, including caregivers and health-conscious consumers, fostering inclusivity in digital recipe platforms.
+The initiative also contributes to the academic and research community by generating a structured dataset of recipes annotated with allergen information, which can be used for future studies.
 
-Action Items:
-Clearly define and document system components:
-Frontend (UI layer, user interactions)
-Backend (business logic, data processing)
-NLP processing pipeline (ingredient analysis, allergen detection)
-Database (data storage schema)
-Clearly document data flow between components (e.g., user queries → backend API → database queries → NLP pipeline → frontend).
+Project deliverables
+Functional web-based tool: A user-friendly recipe search tool with an interactive interface allowing allergen-based filtering
+Validation of Hybrid Approach: Evidence demonstrating the superiority of combining NLP and rule-based scraping over standalone methods.
+Dataset: A structured dataset of recipes annotated with allergen information for future research. This is to ensure the data format is uniform and efficient for searching
+Framework: A reusable framework for scraping and analyzing unstructured food-related data.
+Iterative Testing: Deploy iterative cycles of testing, evaluation, and refinement based on quantitative metrics and user feedback.
 
-Output:
-Detailed architecture diagrams (UML diagrams, flowcharts).
-Technical architecture documentation (Markdown/PDF).
+Literature Review
 
-3.2 Database Schema and Implementation
+Food Allergies and the Need for Allergen Awareness Tools
+Food allergies are a serious public health concern in the world nowadays, with recent reviews estimating that around 8% of children and about 10% of adults in developed countries have at least one food allergy [1]. In the United States, food allergies are responsible for approximately 30,000 emergency room visits and 150 deaths each year due to severe reactions like anaphylaxis[2]. There is no cure for food allergies, so strict avoidance of allergenic ingredients is the most effective strategy. Even a small amount of an allergen can trigger reactions ranging from mild symptoms to life-threatening anaphylaxis. Consequently, people with allergies need to monitor their food choices carefully, driving strong demand for tools that help them identify and avoid allergens.
+One big challenge is that allergen information in recipes is often incomplete or inconsistently presented. While packaged foods are required to label common allergens (for example, the U.S. FDA’s “Big 8” allergens[3], or the 14 major allergens defined in EU regulations[4]), recipes on websites or in cook books typically do not show explicit allergen labels. Recipe websites rarely indicate which of their ingredients correspond to major allergen categories. Users searching for safe recipes often have to manually scan ingredient lists and may miss hidden allergenic components. For example, a person with a milk allergy must recognize that ‘ghee’ (butter with milk solid) or ‘casein’ (protein from cow’s milk) are actually milk derivatives, yet studies show many consumers do not realize certain ingredient names (e.g. casein, whey) indicate the presence of a major allergen. The lack of clear and structured allergen information in online recipes makes it difficult for those with allergies to confidently find safe meals.
+The growing trend of home cooking and reliance on online recipes among people with food allergies highlights the urgent need for effective allergen-detection tools. While cooking at home reduces the risk of accidental exposure compared to dining out, many web-based recipes present unstructured or ambiguous ingredient lists. Simple searches for “nut-free recipes,” for example, often fail to exclude all nut-containing dishes. Stakeholders in the food-allergy community agree that being able to reliably filter or search recipes by specific allergens would greatly enhance daily life. In response, developers have introduced digital solutions, like mobile apps for barcode scanning (QR & Barcode scanner by Gamma Play, Google Lens), platforms for crowdsourced allergy-safe dining recommendations (EveryBite, Spokin), but few tools address the unique challenges of recipe websites. An allergen-aware search engine that automatically scrapes recipes, analyzes their ingredients and flags potential allergens could bridge this gap. This dissertation is motivated by that clear user need: empowering individuals with dietary allergies to discover and prepare online recipes with confidence and safety.
 
-Action Items:
-Review and finalize the provided database schema.
-Implement the schema practically using a relational database (PostgreSQL recommended).
-Clearly set up primary keys, foreign keys, and indexing for efficient query performance.
+Web Scraping Technologies in the Culinary World
+Web scraping is the automation of the data extraction process from the website [5]. In simple words, it means retrieving content from URLs for personal use. 
+This has become a valuable technique across domains due to the huge amount of online information available for a variety of purposes, such as comparing prices online, observing changes in weather data, website change detection, research, integrating data from multiple sources, extracting offers and discounts, scraping job postings information from job portals, brand monitoring and market analysis [6]. Even in the culinary world, web scraping has been used to collect large datasets of recipes, ingredients and nutritional information. By using web crawlers and parsers, developers/researchers can gather content of recipes, including titles, ingredients, instructions, etc. from many different cooking websites to create a database of recipes. These databases then support various applications such as recipe search engines, recommendation systems or nutritional analysis tools.
+An example of web scraping in the culinary domain is the creation of large public recipe datasets. For instance, Recipe1M, is a dataset of over one million cooking recipes that were scraped from a number of popular food websites[7]. The scraped recipes in Recipe1M are structured with their list of ingredients, cooking instructions and often associated images, which help to enable research on tasks like recipe retrieval and ingredient recognition. Another example is the Food.com dataset, which contains 180K+ recipes of user-contributed recipes and was also compiled through automated web scraping[8]. These large scale scraping efforts illustrate how web data can be leveraged to feed culinary research and applications.
+The process of extracting data from websites, commonly known as web scraping, typically entails requesting web pages, analyzing their HTML or JSON structure to pinpoint desired information fields (using methods like DOM traversal or CSS selectors), and subsequently cleaning and storing the retrieved data. Frequently used tools include Python libraries such as BeautifulSoup, which excels at parsing HTML, and Scrapy for constructing powerful web crawlers. Many websites, particularly those featuring recipes, exhibit a relatively consistent layout (for example, ingredients might be listed within <li> elements associated with a specific class or ID), a pattern readily exploitable by a scraper. However, not all sites are straightforward, some utilize JavaScript to load content dynamically or necessitate interaction with menus and buttons to display the complete recipe. In such scenarios, headless browser tools like Selenium might be necessary to render the page and execute scripts, enabling the scraper to capture this dynamic content. This introduces an extra layer of complexity, as the scraper must simulate a genuine web browser to acquire the information.
+Web scraping has proven vital in the culinary field, facilitating the creation of specialized datasets and databases. An example is FoodBase, a corpus of annotated food entities developed by Popovski et al. (2019)[9]. This project was developed by extracting recipes from the website Allrecipes.com, a big online recipe hub. The collected recipes went under processing and annotation to pinpoint various food-related terms like ingredients and dishes, providing a useful dataset for training natural language processing (NLP) models for food entity recognition. The FoodBase example illustrates how web scraping can enhance the raw text required for subsequent analysis such as ingredient identification. Likewise, researchers have engaged scraping to compile online menus or nutritional databases. As Eftimov et al. (2017) [10] observe, web scraping is frequently essential for accumulating extensive food datasets when public APIs or existing databases fall short. By automating data collection across numerous recipe pages, scraping enables analyses that would be infeasible to do via manual methods.
+However, scraping at scale also introduces some technical challenges. One challenge is maintaining the scrapers over time. This is because websites can change their layout or structure and can break the current scraping scripts. That's why a scraper must be updated accordingly to continue extracting data accurately. Additionally, large-scale scraping must cope with rate limits and anti-bot technologies on websites (such as CAPTCHAs or IP blocking). Respecting websites’ robots.txt policies and terms of service is also important to ensure ethical compliance. These factors imply that establishing a dependable, scalable web scraping pipeline demands not just initial construction but also persistent maintenance and oversight. In conclusion, web scraping is an effective method for obtaining culinary data by successfully employed in building recipe datasets and entities. Its application forms the basis for this project by scraping recipe content from diverse sources, we aim to accumulate the unstructured ingredient data necessary for subsequent allergen information analysis.
 
-Output:
-Implemented database with defined tables (recipes, ingredients, allergens, recipe_allergens, user_feedback).
-ERD (Entity-Relationship Diagram) for documentation purposes.
+NLP for Ingredient Extraction and Allergen Detection
+Today, we're surrounded by an overwhelming amount of information, from news and corporate files to medical records, government documents, court proceedings and social media. Much of this data is unstructured, meaning it’s in free text, which makes it challenging to analyze and give conclusions. The food industry faces a similar challenge. While allergens are clearly marked on packaged foods, recipe ingredients are typically described using free-form language. This is where Natural Language Processing (NLP) – the application of computational techniques to understand and process human language[11] – comes in. NLP can fill this gap by parsing ingredient lists and identifying which ingredients correspond to known allergens. Core NLP tasks relevant to ingredient extraction are tokenization, named entity recognition (NER) and dependency parsing. 
+Named Entity Recognition (NER) in the food world focuses on identifying and categorizing food-related terms like ingredients, dishes, and quantities in text. In reality, general NER models often struggle with culinary terms, so specialized models/rules are built. For example, the FoodBase corpus research has been used to train and test food-specific NER methods[12]. Popovski et al. (2019) developed a rule-based system called FoodIE to tag ingredients in recipes automatically, then manually refined the results to build a reliable dataset[13]. This mix of automated tagging and human review ensures high accuracy. Ingredient NER models must handle diverse terms, from simple ones like "milk" to more complex text like "dried shiitake mushrooms." In a recent work by Akujuobi et al. (2024), introduced SINERA, a model designed for recipe ingredients, tackling issues like inconsistent formatting and scarce labeled data[14]. These specialized models perform far better than standard ones, showing the value of tailored NLP solutions.
+Dependency parsing boosts ingredient extraction by breaking down sentence structure. An ingredient phrase, like "2 cups of finely chopped almonds," includes quantities, units, and descriptions alongside the main food item. Parsing helps pinpoint the core ingredient ("almonds") and separate it from other bits ("2 cups" and "finely chopped"). By understanding how the words relate to each other grammatically, the NLP system can tell you that 'almonds' is the ingredient and that 'finely chopped' describes how it's prepared, not a different ingredient.
+To detect allergens in recipes, NLP can connect ingredients to allergen categories using a blend of knowledge-based methods and language processing. A simple approach is to use a list or database of allergenic ingredients. For example, if a recipe mentioned "tofu," an NLP system could check a database and flag it as a soy derivative ingredient since tofu is made from soy. The Food Standards Agency provides lists linking terms like "casein" to milk or "semolina" to wheat [15]. A rule-based NLP system can scan ingredient lists for these terms using a dictionary. But relying only on word matches can possibly lead to errors. For instance, "peanut oil" suggests peanuts, a major allergen, but highly refined peanut oil may not contain allergenic proteins, which is hard to catch from text only. Similarly, "nutmeg" includes "nut" but it actually isn’t a tree nut, as it’s a seed spice.
+For better accuracy, NLP systems can use context and meaning. Tools like word embeddings or language models can recognize that "almond milk" and "almond flour" both involve almonds (a tree nut allergen), while "coconut milk" involves coconut, which some regions classify as a tree nut allergen despite being botanically different. In general, NLP enables smart ingredient parsing and allergen cross-referencing. By using the NER method to identify ingredients and then applying rule-based lookups or classification models, the system can flag potential allergens in recipes. Recent research by Eftimov [16] shows that combining NLP with food-specific knowledge works well. It presents drNER, the first NER tailored to “evidence-based dietary recommendations.” drNER uses a two-phase, rule-based pipeline—first detecting candidate spans, then selecting/extracting entities such as specific nutrients (e.g. “magnesium,” “calcium”) or food groups. By structuring these unstructured texts, drNER makes it straightforward to link each entity to its allergen or nutrient metadata. This project uses a similar hybrid approach by catching clear allergen keywords with rules and detecting trickier cases with deeper language analysis.
 
-3.3 NLP and Web-Scraping Pipeline Design
+Hybrid Rule-Based and NLP Systems in Food and Health
+Hybrid systems that integrate rule-based logic with NLP or machine learning have shown promise in various domains, particularly where expert knowledge is available but language use is varied. The motivation for a hybrid approach is that Rule-based methods excel at catching known patterns, while machine learning handles new or tricky cases that rules might miss.
+In healthcare, Xie et al. (2025) developed and validated a hybrid NLP system to identify asthma symptoms in medical records [17]. This study used expert-defined rules for clear symptom terms and context, paired with a deep learning model to catch varied phrasing. This approach achieved an overall F1 score above 0.95, outperforming both the rule-based only and transformer-only baselines. It demonstrates that rules ensure high precision capture of key terms while the deep model fills in the gaps.
+In the food world, similar approaches shine. As mentioned earlier, the FoodBase corpus construction itself used a rule-based NER system (FoodIE) followed by manual validation, essentially a rule-based first pass with human (or one could imagine machine learning) correction. A study by Rajvir Kaur (in clinical nutrition informatics), for instance, mixed handwritten rules with an SVM classifier to analyze dietary notes, outperforming single-method systems [18]. In recipe analysis, a hybrid system might use rules to flag clear labels (like “gluten-free”) and NLP or ML to check ingredients for hidden allergens. The initial rules simplify the task by skipping obvious cases, while NLP digs deep into recipes without clear labels.
+This hybrid approach fits allergen detection well and balances precision and recall. A rule-based system with an allergen dictionary catches exact matches like “peanut” or “shrimp” very well but might miss unusual terms, which then lead to missed allergens. A pure ML system might guess allergens from patterns but could overreach or make unclear errors. Combining them could be a better idea: rules provide solid knowledge and ML adds adaptability. Guidelines for food allergy apps suggest using multiple checks for reliability, like rules to double-check ML predictions if no known allergen is found.
+Similar hybrid systems work in nutrition and diet recommendations. A rule-based system might enforce strict dietary limits (e.g., no sodium or allergens), while NLP interprets user queries or product descriptions. A Personalized Nutrient-Based Meal Recommender System called Yum-me used diet rules alongside a learning model to suggest dishes, blending strict safety checks with user preferences [19]. In allergen detection, rules ensure no known allergens are missed, while NLP handles vague recipe text, for example when a user asks something like “no nuts and eggless recipes.”
+In summary, hybrid rule-based and NLP systems have demonstrated success in health and food tasks. They’re particularly useful when clear rules (like the 14 EU allergens) meet messy real-world text. This supports the current project’s plan to use rules for obvious allergen clues and NLP for deeper ingredient checks, aligning with proven methods to maximize accuracy and build trust by minimizing errors.
 
-Action Items:
-Document the full pipeline clearly:
-Data extraction and scraping methods (BeautifulSoup, Selenium).
-NLP processing steps (NER, tokenization, dependency parsing).
-Allergen detection logic (explicit rule-based detection + NLP inference).
-Define clear data formats at each pipeline stage (e.g., raw HTML → structured JSON → NLP annotated data).
+Handling Missing Allergen Labels: Machine Learning and Heuristic Approaches
+A key challenge for an allergen recipe search engine is that most recipes don’t list allergens explicitly, unlike packaged foods that normally state “This product contains milk,soy.” Recipes typically just list ingredients, so the system must figure out allergens not mentioned in metadata. Researchers tackle this with machine learning, rule-based methods or both.
+One way is to treat allergen detection as a classification task: take an ingredient list (and maybe the recipe title or instructions) and predict which of the 14 major EU allergens are present. Roither et al. (2022) did this in The Chef’s Choice study by using a labeled recipe dataset to train models [20]. Each recipe could have one or more allergens or be marked free of specific ones. With thousands of examples, the model gradually learned to link ingredients like “flour,” “yeast,” or “barley malt” to the gluten allergen. Roither’s model evaluated both automatically and via a user-labelling study and was highly accurate and powered a browser extension to warn users about allergens in recipes. The model achieved strong performance across multi-label metrics, demonstrating the feasibility of tagging recipes simultaneously for multiple allergens
+Another machine learning approach uses neural networks, like RNNs or transformers to analyze raw ingredient text and predict allergen likelihood. These don’t need predefined allergen lists but they learn from the training data. For example, they might notice “ricotta” or “ghee”, which often means dairy - based on training recipes. The strength of this method is flexibility because it can potentially spot new or uncommon ingredients as allergenic with enough data, like recognizing “aquafaba” as an egg substitute. However, a drawback is that the model’s predictions may not be explainable, and errors can occur if the model picks up spurious correlations or lacks certain examples in training.
+On the other hand, rule-based methods use pre-defined knowledge to identify allergens. A rule-based might simply scan the ingredient list for matches in an allergen list. If any ingredient matches, the recipe is labeled as containing that allergen. For dairy, the list could include milk, butter, cheese, cream, whey, casein, yogurt, ghee and so on. For eggs, it might include egg, albumin, mayonnaise and so on. This approach guarantees that if a known allergen term appears, it will be caught. In the present day, regulatory guidelines implicitly provide these lists – e.g., the FDA requires that ingredients be listed by common names, but also acknowledges that some names may not be recognized by consumers, which encourages maintaining a synonym list of allergenic ingredients [21]. Rules can also add logic, like ignoring “gluten-free” or “dairy-free” labels to avoid false flags, or noting “peanut oil” as a potential peanut allergen, possibly with a note if it’s refined (though detecting that from text is tough).
+Some researchers combine both approaches. Eftimov et al. (2020) used knowledge graphs to link ingredients to allergens [22]. After extracting ingredients with NLP, a graph query checks for associated allergens, acting like an advanced rule-based system. A real world resource is Open Food Facts, a crowdsourced database with over 1.5 million entries with data on ingredients and allergen labels. The idea is that if an ingredient from a recipe is found in Open Food Facts, one can look up known allergen contents. For example, Open Food Facts might record that "soy sauce" usually contains soy and wheat [23]. This approach blends NLP (for ingredient parsing and linking) with a rule-based lookup in an external knowledge base.
 
-Output:Pipeline architecture documentation.
+In summary, dealing with missing allergen labels can involve training models to predict allergens or using rules and databases for clarity. Machine learning offers a data-driven way to capture complex cues and will improve as more annotated examples become available, while rule-based ensures precision and clarity. Combining both by using ML to flag potential allergens and rule-based to verify specific ingredients may get the best results.
 
-Workflow diagrams showing data transformation and flow.
+Technical and Practical Challenges of Hybrid Allergen Detection
+Creating a hybrid allergen-filtering system for recipes comes with several technical and practical challenges. One big issue is the varied and unclear way ingredients are named. For example, "flour" often means wheat flour, which contains gluten, but recipes today might use almond flour or rice flour instead. If a recipe just says "1 cup flour," a system might assume wheat, risking a wrong gluten flag if it’s actually a gluten-free blend. Human cooks might clarify this in notes, but an algorithm needs to decide. Similarly, "milk" usually means cow’s milk (a dairy allergen), but vegan recipes might list "almond milk" (tree nut) or "soy milk" (soy). The word "milk" alone could trick a basic system. The system needs to understand context, like ignoring "milk" in "dairy-free milk alternative," which requires smart rules ( for e.g., skip "milk" if it follows "almond") or advanced natural language processing that understands negations and modifiers.
+Another issue is ingredient synonyms and regional terms. Eggs might be listed as "egg whites," "albumin," or even implied in "meringue." Seafood allergens are trickier: "prawns" versus "shrimp," or "scampi," which refer to a dish containing shellfish. Peanuts might be called "groundnut" in some places in Asia or appear in products like "Nutella" (which has hazelnuts, not peanuts). The system needs detailed lists of these variations and some context awareness. Keeping these lists current is not easy at all. For instance, new terms like "aquafaba" (an egg replacement in vegan recipes) emerge with food trends, affecting egg allergen detection [24].
+Scraping recipe websites is another technical challenge. Some sites have well-structured HTML or metadata, which makes ingredient extraction relatively easy. However, others hide ingredients behind buttons or JavaScript, requiring complex tools like headless browsers. Ensuring the scraper reliably captures the ingredients and any relevant tags or notes is significant. If a website loads ingredients via an API call after the first page loads, the scraper must detect and handle that. Large-scale scraping can trigger IP blocks or CAPTCHAs if the crawling is massive, so the system must scrape respectfully, possibly by adding wait time after requests or using cached data.
+Combining rule-based and machine learning methods introduces its own complexity. The two approaches might disagree initially. For example, a machine learning model might predict that a recipe contains dairy perhaps because "cheese" appeared in comments, but a rule-based check of ingredients finds no dairy terms. Deciding how to reconcile those kinds of conflicts is not easy. For safety, the system could flag an allergen if either method suggests it, avoiding missed allergens but risking over-flagging, which might annoy users. Balancing accurate allergen detection with minimal false flags needs very careful testing. Explainability is also an issue because in reality, users want to know why a recipe was flagged as containing allergen. Rule-based are clear ("the recipe was flagged because 'parmesan cheese' is in the ingredients"), but machine learning might just say "90% chance of dairy," which is harder to justify. For trust, the system should lean on clear rule-based evidence or highlight specific ingredients driving the model’s flag.
+Edge cases and compound ingredients are another hurdle. A recipe might list “1 can cream of mushroom soup,” which could include dairy or wheat. A human would suspect allergens, but a basic parser might see it as one ingredient and miss them. Solving this might mean checking a database like Open Food Facts for product ingredients. Recipes sometimes include optional or conditional ingredients, something like “if using nuts, toast them first” or “soy sauce (or tamari for gluten-free),” such instructions complicate things further. Should the system assume nuts or gluten are present? It might need to flag the worst-case scenario or note the conditionality.
+Legally and ethically considerations also come as challenges. Scraping raises concerns about using recipe text without permission. Allergen advice also carries liability - if the system misses an allergen and someone reacts, who’s responsible? While not purely technical, this shapes design: the system needs disclaimers and should urge users to verify critical info. It also underscores why high accuracy is not just a nice-to-have but a necessity.
+
+To sum up, the system must address unclear ingredient names, data extraction difficulty, integration of different methods and edge cases. These challenges guide the project’s design, such as maintaining allergen lists, reliable scraping and thorough testing to ensure accuracy.
+Scalability and Maintenance of Allergen Filtering Tools
+For a tool with the aim to help users find allergen-safe recipes over time, scalability and long-term maintenance are important considerations. About scalability, it's not only about technical scalability but also refers to the ease of developing the tool to cover more sites, more allergen factors and feature updates. Maintenance keeps the scraping and analysis methods current as websites and language change.
+
+Scalability
+Starting with a few recipe sites is fine, but covering dozens to hundreds increases recipe variety. Each site may need its own scraping method since website layouts vary. A scalable architecture might involve modular scrapers for each site, then feeding data into a standard format. Using a scraping framework like Scrapy can manage multiple scrapers and avoid duplicate work. According to ScrapeHero guidance, large-scale scraping needs strong infrastructure (parallel requests, IP rotation, and so on) and careful planning to avoid blocks [25]. From a development perspective, adopting a microservices or cloud-based approach (where scraping jobs can run in parallel on multiple servers) would allow the system to crawl many recipes quicker. The tool also needs to handle more users searching its database at the same time. Storing recipes and analysis in an efficient database ensures fast searches, even as the recipe collection grows.
+
+Maintenance
+Websites often change their layouts, as mentioned in previously, which can break scrapers. A maintenance plan should include monitoring after release. For example, if a scraper usually finds 20 ingredients for this site but suddenly finds none, the site most likely changed. Regular tests can verify if scrapers are still working as normal, and updates must be in place. Clear code and documentation make fixing easier in those cases. Another approach is using standard recipe formats, like Schema.org’s Recipe markup, to help to reduce dependency on specific designs, though not all sites use these standards [26]. Tapping into open-source scrapers or community datasets can lighten the load, letting the tool piggyback on existing projects instead of building everything from scratch.
+Updating language models
+Another aspect of maintenance is the language updates, new ingredients like oat milk (plant-based) or quorn (meat replacement) emerge and the model should keep up. User feedback, like indicating wrong allergen labels can help refine models. Scheduled re-training yearly or when enough new data is accumulated will keep the models up-to-date. If better food-specific language tools emerge, the system should be flexible enough to swap them in without a full rebuild. The allergen knowledge base, like dictionaries or lists, also needs updates. For example, sesame recently became a major U.S. allergen, and new ones like pea protein could emerge. These updates, guided by agencies like the FDA or EU, are rare but critical.
+
+Performance
+The hybrid system (rule-based and NLP) should be optimized so that returning search results is fast enough from user perspective. Heavy tasks, like running language models, can be done in advance. For example, the system could pre-label all recipes for allergens and store them, so a search for “egg-free desserts” is just a quick database check. This works if recipe updates are periodic and data volume is manageable. An automated pipeline can classify new recipes daily and update the database.
+Community and developer support
+An open-source approach could help, letting users or contributors update allergen lists or fix scrapers. The tool should be built as a flexible framework, not a one-time project, so it can adapt to other food data tasks. Research highlights reusable scraping and analysis frameworks. Clear documentation and easy ways to add new sites or allergens pave the way for growth.
+
+Legal and privacy
+The tool must regularly review the terms of use of source websites to ensure continued compliance as some may restrict scraping, requiring adjustments or permission. If user data like preferences is stored, privacy laws like GDPR must be followed and updated as needed.
+User Trust, Usability, and Interface Design Considerations
+For any health-related technology, especially one dealing with something as critical as food allergies, user trust and usability are just as important as technical accuracy. Even the most accurate allergen detection system will fail to have impact if users do not trust it or find it difficult to use. Thus, examining literature on user experience and acceptance of allergy focused tools is essential.
+Trust comes from users feeling confident the tool is right and has their back. People with allergies, or parents of allergic kids, are often cautious and nervous about food, so they might not immediately trust a new app or tool. Users are more likely to trust a system if they understand how it works and why it makes recommendations. In this dissertation, this means the interface of the recipe filtering should clearly show the reason why a recipe was marked as unsafe or safe. For example, if a recipe is not safe, show a message like “Contains allergen: Shellfish (ingredient: shrimp paste).” If it just gives a general warning without details, users might doubt it because mistakes could be dangerous.
+Research on allergy apps has found that overall quality is acceptable but often lacks engaging design or user experience. According to a study by Mandracchia (2020), it says while many apps work fine, they’re not always user-friendly or fun to use [27]. To fix this, the tool should be designed from a user standpoint, for example with simple search and filter options, clear signs of allergens and maybe the ability to customize for specific allergies (like setting a profile for “no peanuts or dairy”). This makes the tool more relevant and easier to use.
+Accuracy and consistency also need to be considered when talking about trust. If the tool misses an allergen that a user knows should be flagged, the user will lose confidence quickly. Testing with real users can help find the right balance and to see whether people prefer the tool to be extra cautious or less likely to give false alarms. A study by Akbar et al. (2020) mentioned that users care about reliability and the stakes of mistakes [28]. For allergies, a mistake could end up with a reaction, so some users might want the tool to play it as safe as possible. But if it flags everything, they might just ignore it. Providing an option for users to adjust allergen sensitivity or at least provide feedback, like letting users mark a recipe as safe or not safe, could build trust in the long-term.
+Additionally, the tool’s design should fit smoothly into how people browse recipes. For example, a browser extension could show allergen info right on a recipe website, so users don’t have to copy ingredients somewhere else. A dedicated recipe platform could have straightforward filters, like simple checkboxes to exclude allergens. Another solution is to use clear visuals, like a peanut icon for nuts, or a milk bottle for dairy can help users quickly identify the allergens. The consistency in using terms is also important as it can avoid confusion, like always saying “gluten-free” instead of switching to “wheat-free”.
+To keep users engaged, the tool could include extras, such as FYI (For Your Information) about safe ingredients (e.g., “Aquafaba is egg replacement for egg-allergic people”). But these should be optional so they don’t interfere with the main goal: finding safe recipes. The tool also needs to handle multiple allergies by letting users filter out a few allergens at once (like nuts, dairy and eggs) with simple input/click.
+User trust is also influenced by the backing of credible institutions or data sources. If the tool looks like a random app on the internet, users might not take it seriously. Linking to trusted sources, like FDA allergen lists or being backed by a university or health group can help. A help section explaining how the tool works by using reliable databases or algorithms can reassure users. Additionally, providing disclaimers like “Always double-check ingredients for severe allergies,” are typical in allergy apps.
+From a safety perspective, the design should follow other systems like medical devices, where clear and simple interfaces reduce errors. If a recipe is unsafe, it should be obvious and maybe with bold text and a warning symbol. If it’s safe, a green checkmark could confirm it, but users should still be able to see why (like a quick view of the ingredient list). This builds trust by letting users verify things themselves.
+Finally, getting feedback from real users with allergies is important. Testing the tool with them can reveal what works are missing, like whether they want to save safe recipes or prefer a mobile app for kitchen use. Studies show tools designed with user input are more successful. Mandracchia’s study pointed out that many allergy apps skip real-user testing, which is a missed opportunity [29].
+In short, an allergen recipe tool needs to be clear, accurate and easy to use. It should show allergen info with visuals and explanations, let users personalize their allergy settings and with smooth recipe browsing.
+
+Research Questions, Design and Methodology
+
+Project aims
+This research project aims to address the practical and technical challenges of extracting allergen information from diverse online recipe sources. By developing a hybrid approach that leverages both rule-based scraping and NLP, the project seeks not only to contribute to the field of data extraction techniques but also to provide a valuable tool for individuals managing food allergies.
+
+Expected Research Outcomes
+Validated Hybrid Extraction Model: Demonstration that combining rule-based and NLP methods can reliably extract allergen information with >90% accuracy.
+Functional Web-Based Tool: A prototype that enables users to search for and filter recipes based on allergen profiles.
+Data Insights: Identification of common challenges in scraping unstructured recipe data and proposed solutions.
+Helping Research: A comprehensive study that advances knowledge in the intersection of web scraping, NLP, and health informatics.
+
+Research Question
+To what extent does a hybrid NLP and rule-based web-scraping approach improve the accuracy, speed, and usability of allergen extraction from unstructured recipe data compared to using either NLP or rule-based methods alone?
+Sub-questions:
+a. What rule-based patterns and NER models yield highest precision vs. recall trade-offs?
+b. Which strategies—machine-learning imputation, heuristic rules, or hybrid methods—best detect and fill missing allergen labels in recipes?
+c. How do changes in website layouts impact extraction accuracy, and what automated update mechanisms best mitigate decay?
+
+Hypothesis
+A hybrid approach combining NLP for ingredient analysis and rule-based scraping for explicit allergen labels is expected to significantly improve accuracy, aiming for around 90% in identifying allergens compared to manual validation.
+
+Mixed-Methods Approach
+Given the dual focus on algorithmic accuracy and user usability, a mixed-methods approach is appropriate.
+
+Quantitative Methods
+Data Collection: Scrape a diverse set of recipe websites to create a dataset of recipes with varied labeling formats.
+Hybrid Extraction Technique: Implement a two-pronged extraction pipeline:
+Rule-Based Scraping: Identify explicit allergen mentions (e.g., “contains dairy”).
+NLP-Based Analysis: Process ingredient lists to infer the presence of allergens using named entity recognition and keyword matching.
+Accuracy Evaluation: Comparison of extracted allergen data against a manually validated reference standard, targeting accuracy above 90%.
+Performance Metrics: Calculation of precision, recall, and F1-score metrics for allergen detection efficacy.
+Suggestion: Be sure to explain how you will obtain the data to support these metrics. For example, mention that you will have a manually curated set of recipes (the reference standard) against which the tool’s results will be automatically tested to compute these metrics. Similarly, if you will collect user input on missed allergens, clarify if that will feed into these measures. Connecting each metric to a concrete data collection method (like a test dataset for automated accuracy testing, or logs of tool performance) will strengthen this section.
+
+Qualitative Methods
+Usability Studies: Conduct interviews and surveys with potential users (e.g., individuals with food allergies, dietitians) to assess the usability and practical value of the web-based tool.
+Expert Feedback: Solicitation of input from domain experts in the nutrition field to refine the extraction rules and NLP models.
+
+Quantitative Evaluation:
+Dataset: 6,000-7,000 recipes from major cooking sites, manually annotated for allergens (split 80 / 20 for training/test).
+Metrics: Precision, recall, F1; avg. scrape + parse time; error-rate drift over 6 months.
+Automated Testing: Continuous integration runs extraction on test set weekly to monitor performance.
 
 
-PHASE 4: DEVELOPMENT
-
-4.1 Development Environment Setup
-
-Action Items:
-Install and configure:
-Python environment (use Jupyter Notebook or PyCharm IDE).
-Web scraping libraries (BeautifulSoup, Scrapy, Selenium).
-NLP libraries (spaCy, NLTK).
-Database connection tools (SQLAlchemy).
-Frontend frameworks (ReactJS recommended).
-Git/GitHub for version control.
-Establish a virtual environment or Docker setup for consistent deployments.
-
-Output:
-Fully set up, documented development environment.
-Clear setup instructions in project README.
-
-4.2 Web-Scraping System Development
-
-Action Items:
-Develop robust scrapers for multiple culinary websites:
-Handle dynamic content loading via headless browsers (Selenium).
-Implement IP rotation and anti-blocking measures.
-Store scraped data consistently (structured format).
-
-Output:
-Working scraping modules capable of scraping from at least five websites.
-Clearly documented scraping rules and data structures.
-
-4.3 NLP Model Development
-
-Action Items:
-Develop NLP pipeline:
-Implement tokenization, named entity recognition (NER), dependency parsing.
-Create and integrate a comprehensive allergen dictionary (14 EU allergens).
-Train NLP models:
-Label a dataset manually (approx. 5,000 recipes, clearly annotated).
-Train models (using spaCy) to identify allergens with >90% accuracy.
-Integrate NLP inference with rule-based allergen checks.
-
-Output:
-NLP pipeline clearly detecting ingredients and allergens.
-Trained NLP models and integrated hybrid allergen detection module.
-
-4.4 Frontend Development
-
-Action Items:
-Develop responsive, user-friendly web interface:
-Implement allergen filtering (checkboxes/toggles).
-Implement recipe search (text-based and filters).
-Display recipe details (ingredients, allergens, source link clearly highlighted).
-Add feedback mechanism (user can submit errors/suggestions).
-
-Output:
-Complete, user-friendly web interface integrated with backend API.
-Clear frontend documentation and codebase.
+Qualitative Evaluation:
+Usability & Trust Survey: 10 participants (allergy sufferers, dietitians) perform filter tasks; measure task success, time on task, trust rating, and interface satisfaction.
+Bias Mitigation: Anonymized responses; diversified sample (age, tech proficiency, allergy type). Standardized questionnaires reduce interviewer influence.
+Suggestion: In addition to general usability, consider evaluating how much users trust the tool’s allergen warnings and how satisfied they are with the interface. For instance, you could gather feedback on whether users feel confident that the recipe filter is catching all relevant allergens and whether the interface makes them feel comfortable and safe. These qualitative factors (user trust and interface satisfaction) are important for an application that people will rely on for health-related decisions.
+Suggestion: Think about ways to minimize subjectivity and bias in the qualitative feedback. Using anonymized surveys or ensuring a diverse group of test users (varying ages, technical skill levels, dietary restrictions, etc.) can help yield more objective insights. Mentioning plans like anonymizing responses and standardizing interview questions will show that you intend to collect qualitative data in a rigorous, unbiased manner.
 
 
-PHASE 5: TESTING AND VALIDATION
+Development
+Environment Setup
+Install and configure required software and tools (Python, Selenium, BeautifulSoup, spaCy, NLTK, Jupyter, PyCharm)
+Set up database environments (e.g., PostgreSQL or MongoDB)
 
-5.1 Functional Testing
 
-Action Items:
-Define test cases clearly based on user stories and acceptance criteria.
-Execute functional tests systematically:
-Scraping accuracy and completeness.
-NLP allergen identification accuracy.
-Frontend interactions (search, filters, feedback submission).
+Web-Scraping System Development
+Implement basic scraping infrastructure using static content tools [3] (BeautifulSoup)
+Develop advanced scraping for dynamic content [3] (Selenium or headless browser solutions)
+Address limitations of web scraping and solutions for anti-scraping strategies (CAPTCHA, request throttling) [4]
+Consider using third-party services such as Zyte [5] or Firecrawl [6] to scrape the page and extract ingredient data to avoid pitfalls with web scraping such as websites with heavily Javascript-based
 
-Output:
-Functional test report clearly documenting test cases and results.
 
-5.2 Performance and Accuracy Testing
+NLP System Development
+Implement ingredient extraction via Named Entity Recognition (NER) dependency parsing, and tokenization (spaCy, NLTK)
+Develop and train NLP model on labeled recipe datasets
+Implement NLP validation system to verify accuracy against manual annotations
 
-Action Items:
-Measure:
-Query response time (< 2 seconds).
-NLP allergen detection accuracy (precision, recall, F1-score against manual annotation).
-Perform automated accuracy tests weekly for continuous monitoring.
 
-Output:
-Performance report clearly indicating system efficiency.
-Weekly automated accuracy reports (clearly logged and documented).
+Integration of Web Scraping and NLP
+Combine web scraping and NLP into cohesive processing pipeline
+Implement hybrid model (initial explicit allergen label detection followed by NLP-based inference)
 
+
+Front-end Development
+Develop responsive and user-friendly web interface
+Ensure accessibility standards and user-friendly allergen filtering functionalities
+Testing and Validation
+Functional Testing
+Develop test scenarios based on user stories
+Perform testing of functionalities (search, filter, allergen identification)
+
+
+Performance and Accuracy Testing
+Execute performance tests (speed, responsiveness)
+Evaluate system accuracy against manually verified dataset (>90% accuracy target)
+Generate comprehensive precision, recall, F1-score reports
+
+
+User Acceptance Testing (UAT)
+Conduct usability testing with representative user groups
+Collect and analyze user feedback and update accordingly
+
+
+Bug Tracking
+Systematic documentation and prioritization of reported issues
+Issue tracking with tools like Trello or GitHub Issues
+Deployment and Documentation
+Prototype Deployment
+Host the final application prototype on cloud infrastructure (AWS, Google Cloud, Azure)
+Conduct final deployment testing and monitoring
+
+
+Documentation
+Technical documentation (system architecture, API documentation, code comments)
+User guide and FAQs
+
+
+Final Report
+Documentation covering methods, results, analysis, limitations and future work
