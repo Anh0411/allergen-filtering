@@ -14,9 +14,15 @@ Parameters:
 <div class="flex items-center space-x-2">
     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
         <span class="w-2 h-2 bg-green-400 rounded-full mr-1"></span>
-        ✅ Safe
+        ✅ Low Risk
     </span>
-    <span class="text-xs text-green-600 font-medium">Allergen-Free</span>
+    <span class="text-xs text-green-600 font-medium">
+        {% if detected_allergens %}
+            {{ detected_allergens|length }} allergen{% if detected_allergens|length != 1 %}s{% endif %} detected
+        {% else %}
+            No allergens detected
+        {% endif %}
+    </span>
 </div>
 {% elif risk_level == 'medium' %}
 <div class="flex items-center space-x-2">

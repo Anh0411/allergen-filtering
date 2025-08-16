@@ -15,10 +15,16 @@
           <div class="flex items-center justify-center mb-2">
             <span class="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-green-100 text-green-800 border border-green-300">
               <span class="w-3 h-3 bg-green-400 rounded-full mr-2"></span>
-              ✅ Safe to Consume
+              ✅ Lower Risk
             </span>
           </div>
-          <p class="text-sm text-green-700 text-center">This recipe appears to be allergen-free based on our analysis.</p>
+          <p class="text-sm text-green-700 text-center">
+            {% if recipe.analysis_result.detected_allergens %}
+              Contains {{ recipe.analysis_result.detected_allergens|length }} allergen{% if recipe.analysis_result.detected_allergens|length != 1 %}s{% endif %}. Review ingredients if you have allergies.
+            {% else %}
+              No major allergens detected, but always verify ingredients for your specific allergies.
+            {% endif %}
+          </p>
           
           {% if can_annotate and existing_annotation %}
           <div class="mt-3 pt-3 border-t border-green-200">
@@ -141,9 +147,9 @@
             {% for allergen, score in recipe.analysis_result.confidence_scores.items %}
                 {% if forloop.first %}
                     {% widthratio score 1 100 as percentage %}
-                    {% if percentage >= 80 %}
+                    {% if percentage|add:0 >= 80 %}
                       High confidence analysis
-                    {% elif percentage >= 60 %}
+                    {% elif percentage|add:0 >= 60 %}
                       Moderate confidence analysis
                     {% else %}
                       Low confidence - manual review recommended
@@ -271,11 +277,11 @@
               <div class="flex items-center">
                 <h3 class="font-semibold text-red-800 text-lg">{{ allergen.category.name }}</h3>
                 {% widthratio allergen.confidence 1 100 as percentage %}
-                {% if percentage >= 80 %}
+                {% if percentage|add:0 >= 80 %}
                 <span class="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                   High Confidence
                 </span>
-                {% elif percentage >= 60 %}
+                {% elif percentage|add:0 >= 60 %}
                 <span class="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
                   Moderate Confidence
                 </span>
@@ -431,7 +437,7 @@
 
     <!-- Navigation with Enhanced Actions -->
     <div class="flex flex-wrap gap-4 justify-center">
-      <a href="/"
+      <a href="{{ back_to_search_url }}"
         class="inline-flex items-center px-6 py-2 border border-yellow-600 text-yellow-700 rounded-full font-semibold shadow hover:bg-yellow-50 transition">
         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>

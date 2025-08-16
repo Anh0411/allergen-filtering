@@ -25,6 +25,7 @@ def recipe_search(request):
     selected_allergens = request.GET.getlist('allergens')
     search_query = request.GET.get('search', '').strip()
     risk_level = request.GET.get('risk_level', '')
+    no_allergens = request.GET.get('no_allergens', '')
     sort_by = request.GET.get('sort', 'title')
     
     # Check for success message from annotation
@@ -53,6 +54,14 @@ def recipe_search(request):
     # Apply risk level filtering
     if risk_level:
         recipes = recipes.filter(analysis_result__risk_level=risk_level)
+    
+    # Apply no allergens filtering
+    if no_allergens:
+        # Filter for recipes with no detected allergens
+        recipes = recipes.filter(
+            Q(analysis_result__detected_allergens={}) |
+            Q(analysis_result__detected_allergens__isnull=True)
+        )
     
     # Calculate statistics before any sorting that might convert to list
     total_recipes = recipes.count()
@@ -105,6 +114,7 @@ def recipe_search(request):
         'page_obj': page_obj,
         'search_query': search_query,
         'risk_level': risk_level,
+        'no_allergens': no_allergens,
         'sort_by': sort_by,
         'total_recipes': total_recipes,
         'recipes_with_allergens': recipes_with_allergens,
@@ -127,6 +137,43 @@ def recipe_detail(request, pk):
     allergen_analysis = None
     if hasattr(recipe, 'analysis_result'):
         allergen_analysis = recipe.analysis_result
+    
+    # Build back to search URL with preserved parameters
+    from urllib.parse import urlparse, parse_qs
+    
+    # Get referrer information to preserve pagination context
+    back_to_search_url = '/'  # Default fallback (root level recipe search)
+    referrer = request.META.get('HTTP_REFERER', '')
+    
+    if referrer:
+        try:
+            # Extract query parameters from referrer
+            parsed_url = urlparse(referrer)
+            query_params = parse_qs(parsed_url.query)
+            
+            # Check if this looks like a recipe search page (has search parameters or is root)
+            is_recipe_search = (
+                parsed_url.path == '/' or  # Root path
+                'search_query' in query_params or  # Has search query
+                'risk_level' in query_params or  # Has risk level filter
+                'sort_by' in query_params  # Has sorting
+            )
+            
+            if is_recipe_search and query_params:
+                param_strings = []
+                for key, values in query_params.items():
+                    # Preserve ALL parameters including page number
+                    for value in values:
+                        param_strings.append(f"{key}={value}")
+                
+                if param_strings:
+                    back_to_search_url = f"/?{'&'.join(param_strings)}"
+        except Exception:
+            # If there's any error parsing the referrer, fall back to default
+            back_to_search_url = '/'
+    
+    # If no referrer or not from recipe search, use default
+    # This handles direct links, bookmarks, etc.
     
     # Get detected allergens with details
     detected_allergens = []
@@ -192,6 +239,7 @@ def recipe_detail(request, pk):
         'detected_allergens': detected_allergens,
         'can_annotate': can_annotate,
         'existing_annotation': existing_annotation,
+        'back_to_search_url': back_to_search_url,
     }
     return render(request, 'recipes/recipe_detail.html', context)
 
