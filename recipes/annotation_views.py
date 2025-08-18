@@ -16,7 +16,7 @@ from django.core.paginator import Paginator
 from django.db.models import Q, Count, Avg
 
 from .models import (
-    Recipe, AnnotationProject, AnnotationTask, RecipeAnnotation,
+    Recipe, AnnotationProject, AnnotationTask, Annotation,
     AnnotationDispute, AnnotationQuality
 )
 from .annotation_models import AnnotationBatch, AnnotationGuideline
@@ -74,7 +74,7 @@ def project_detail(request, project_id):
     user_pending = user_tasks.filter(status='pending').count()
     
     # Get recent annotations
-    recent_annotations = RecipeAnnotation.objects.filter(
+    recent_annotations = Annotation.objects.filter(
         task__project=project
     ).select_related('task__recipe', 'annotator').order_by('-created_at')[:10]
     
@@ -109,7 +109,7 @@ def annotation_interface(request, task_id):
         return redirect('project_detail', project_id=task.project.id)
     
     # Get or create annotation
-    annotation, created = RecipeAnnotation.objects.get_or_create(
+    annotation, created = Annotation.objects.get_or_create(
         task=task,
         annotator=request.user,
         defaults={'created_at': timezone.now()}
@@ -126,16 +126,16 @@ def annotation_interface(request, task_id):
         is_active=True
     ).order_by('-version')
     
+    # Get allergen categories for the interface
+    from .models import AllergenCategory
+    allergen_categories = AllergenCategory.objects.filter(is_major_allergen=True).order_by('name')
+    
     context = {
         'task': task,
         'annotation': annotation,
         'recipe': task.recipe,
         'guidelines': guidelines,
-        'allergen_fields': [
-            'celery', 'cereals_gluten', 'crustaceans', 'eggs', 'fish',
-            'lupin', 'milk', 'molluscs', 'mustard', 'nuts', 'peanuts',
-            'sesame', 'soybeans', 'sulphites'
-        ],
+        'allergen_categories': allergen_categories,
     }
     
     return render(request, 'recipes/annotation/interface.html', context)
@@ -153,37 +153,31 @@ def save_annotation(request, task_id):
         data = json.loads(request.body)
         
         # Get or create annotation
-        annotation, created = RecipeAnnotation.objects.get_or_create(
+        annotation, created = Annotation.objects.get_or_create(
             task=task,
             annotator=request.user
         )
         
-        # Update allergen fields
-        allergen_fields = [
-            'celery', 'cereals_gluten', 'crustaceans', 'eggs', 'fish',
-            'lupin', 'milk', 'molluscs', 'mustard', 'nuts', 'peanuts',
-            'sesame', 'soybeans', 'sulphites'
-        ]
+        # Update allergen fields - the existing Annotation model uses ManyToManyField
+        if 'allergens' in data:
+            # Clear existing allergens and set new ones
+            annotation.allergens.clear()
+            for allergen_id in data['allergens']:
+                try:
+                    from .models import AllergenCategory
+                    allergen = AllergenCategory.objects.get(id=allergen_id)
+                    annotation.allergens.add(allergen)
+                except AllergenCategory.DoesNotExist:
+                    logger.warning(f"Allergen category {allergen_id} not found")
         
-        for field in allergen_fields:
-            if field in data:
-                setattr(annotation, field, data[field])
-        
-        # Update other fields
-        if 'confidence_score' in data:
-            annotation.confidence_score = float(data['confidence_score'])
-        
+        # Update notes field
         if 'notes' in data:
             annotation.notes = data['notes']
         
-        if 'time_spent_seconds' in data:
-            annotation.time_spent_seconds = int(data['time_spent_seconds'])
-        
-        annotation.is_complete = data.get('is_complete', False)
         annotation.save()
         
         # Update task status if complete
-        if annotation.is_complete:
+        if data.get('is_complete', False):
             task.status = 'completed'
             task.completed_at = timezone.now()
             task.save()
@@ -262,7 +256,7 @@ def annotation_review(request, task_id):
         return redirect('annotation_dashboard')
     
     # Get all annotations for this task
-    annotations = RecipeAnnotation.objects.filter(task=task).select_related('annotator')
+    annotations = Annotation.objects.filter(task=task).select_related('annotator')
     
     # Check for agreement
     agreement_data = check_annotation_agreement(annotations)
@@ -380,7 +374,7 @@ def quality_dashboard(request, project_id):
     ).select_related('annotator').order_by('-completed_annotations')
     
     # Get project statistics
-    total_annotations = RecipeAnnotation.objects.filter(task__project=project).count()
+    total_annotations = Annotation.objects.filter(task__project=project).count()
     total_disputes = AnnotationDispute.objects.filter(task__project=project).count()
     resolved_disputes = AnnotationDispute.objects.filter(
         task__project=project,
@@ -407,21 +401,20 @@ def check_annotation_agreement(annotations):
     if len(annotations) < 2:
         return {'agreement': 1.0, 'conflicts': []}
     
-    allergen_fields = [
-        'celery', 'cereals_gluten', 'crustaceans', 'eggs', 'fish',
-        'lupin', 'milk', 'molluscs', 'mustard', 'nuts', 'peanuts',
-        'sesame', 'soybeans', 'sulphites'
-    ]
+    # Get all allergen categories
+    from .models import AllergenCategory
+    allergen_categories = AllergenCategory.objects.filter(is_major_allergen=True)
     
     conflicts = []
-    total_fields = len(allergen_fields)
+    total_fields = allergen_categories.count()
     agreed_fields = 0
     
-    for field in allergen_fields:
-        values = [getattr(ann, field) for ann in annotations]
+    for allergen_category in allergen_categories:
+        # Check if this allergen is present in all annotations
+        values = [allergen_category in ann.allergens.all() for ann in annotations]
         if len(set(values)) > 1:  # Conflict detected
             conflicts.append({
-                'field': field,
+                'field': allergen_category.name,
                 'values': values,
                 'annotators': [ann.annotator.username for ann in annotations]
             })
@@ -449,9 +442,8 @@ def export_annotations(request, project_id):
         return redirect('annotation_dashboard')
     
     # Get all completed annotations
-    annotations = RecipeAnnotation.objects.filter(
-        task__project=project,
-        is_complete=True
+    annotations = Annotation.objects.filter(
+        task__project=project
     ).select_related('task__recipe', 'annotator')
     
     # Prepare data for export
@@ -461,12 +453,9 @@ def export_annotations(request, project_id):
             'recipe_id': annotation.task.recipe.id,
             'recipe_title': annotation.task.recipe.title,
             'annotator': annotation.annotator.username,
-            'confidence_score': annotation.confidence_score,
             'notes': annotation.notes,
-            'time_spent_seconds': annotation.time_spent_seconds,
             'created_at': annotation.created_at.isoformat(),
-            'allergens': annotation.get_allergen_list(),
-            'risk_level': annotation.get_risk_level(),
+            'allergens': [allergen.name for allergen in annotation.allergens.all()],
         }
         export_data.append(data)
     

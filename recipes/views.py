@@ -12,6 +12,9 @@ from django.contrib import messages
 from django.utils import timezone
 from django.contrib.auth.models import User
 from .forms import RecipeSearchForm
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Create your views here.
 
@@ -373,35 +376,70 @@ def annotate_recipe(request, recipe_id):
 def feedback_form(request, recipe_id):
     """Display feedback form for allergen detection accuracy and save to RecipeFeedback model only. Always allow general feedback."""
     recipe = get_object_or_404(Recipe, id=recipe_id)
-    detection_logs = AllergenDetectionLog.objects.filter(recipe=recipe).order_by('created_at')
+    
+    # Get allergen analysis result instead of detection logs
+    try:
+        analysis_result = recipe.analysis_result
+        detected_allergens = analysis_result.detected_allergens if analysis_result else {}
+        confidence_scores = analysis_result.confidence_scores if analysis_result else {}
+    except Exception as e:
+        logger.error(f"Error getting analysis result for recipe {recipe_id}: {e}")
+        detected_allergens = {}
+        confidence_scores = {}
 
     if request.method == 'POST':
-        feedback_data = {}
-        for log in detection_logs:
-            is_correct = request.POST.get(f'correct_{log.id}')
-            if is_correct is not None:
-                feedback_data[str(log.id)] = {
-                    'allergen_category': log.allergen_category.name,
-                    'detected_term': log.detected_term,
-                    'is_correct': is_correct,
-                    'confidence_score': log.confidence_score,
-                    'match_type': log.match_type,
-                }
-        notes = request.POST.get('notes', '')
-        general_feedback = request.POST.get('general_feedback', '')
-        # Save feedback to RecipeFeedback model
-        RecipeFeedback.objects.create(
-            recipe=recipe,
-            user=request.user if request.user.is_authenticated else None,
-            feedback_data=feedback_data,
-            notes=notes + ("\nGeneral feedback: " + general_feedback if general_feedback else "")
-        )
-        messages.success(request, 'Thank you! Your feedback has been submitted for internal review.')
-        return redirect('recipe_detail', pk=recipe_id)
+        try:
+            feedback_data = {}
+            
+            # Process feedback for detected allergens
+            for allergen_name, details in detected_allergens.items():
+                # Handle both list and dict formats
+                if isinstance(details, list):
+                    # If details is a list, use the first item as the detected term
+                    detected_term = details[0] if details else allergen_name
+                    is_correct = request.POST.get(f'correct_{allergen_name}')
+                    if is_correct is not None:
+                        feedback_data[allergen_name] = {
+                            'allergen_category': allergen_name,
+                            'detected_term': detected_term,
+                            'is_correct': is_correct,
+                            'confidence_score': confidence_scores.get(allergen_name, 0.0),
+                            'match_type': 'detected',
+                        }
+                elif isinstance(details, dict) and 'term' in details:
+                    # If details is a dict with 'term' field
+                    is_correct = request.POST.get(f'correct_{allergen_name}')
+                    if is_correct is not None:
+                        feedback_data[allergen_name] = {
+                            'allergen_category': allergen_name,
+                            'detected_term': details.get('term', allergen_name),
+                            'is_correct': is_correct,
+                            'confidence_score': confidence_scores.get(allergen_name, 0.0),
+                            'match_type': details.get('match_type', 'unknown'),
+                        }
+            
+            notes = request.POST.get('notes', '')
+            general_feedback = request.POST.get('general_feedback', '')
+            
+            # Save feedback to RecipeFeedback model
+            RecipeFeedback.objects.create(
+                recipe=recipe,
+                user=request.user if request.user.is_authenticated else None,
+                feedback_data=feedback_data,
+                notes=notes + ("\nGeneral feedback: " + general_feedback if general_feedback else "")
+            )
+            messages.success(request, 'Thank you! Your feedback has been submitted for internal review.')
+            return redirect('recipe_detail', pk=recipe_id)
+            
+        except Exception as e:
+            logger.error(f"Error submitting feedback for recipe {recipe_id}: {e}")
+            messages.error(request, f'Error submitting feedback: {str(e)}')
+            # Continue to show the form with error message
 
     context = {
         'recipe': recipe,
-        'detection_logs': detection_logs,
+        'detected_allergens': detected_allergens,
+        'confidence_scores': confidence_scores,
         'allergen_categories': AllergenCategory.objects.all(),
     }
     return render(request, 'recipes/feedback_form.html', context)
